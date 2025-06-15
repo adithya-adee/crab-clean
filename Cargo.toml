@@ -1,0 +1,7 @@
+[package]
+name = "declutter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+console = "0.15.11"
