@@ -1,9 +1,6 @@
 use declutter::{
-    cli::{
-        app::start_cli,
-        commands::{call_appropriate_command, validate_arguments},
-    },
-    config::settings::{Args, parse_arguments},
+    cli::{app::start_cli, commands::dispatch_command},
+    config::settings::{Cli, parse_arguments},
 };
 
 fn main() {
@@ -17,21 +14,14 @@ fn main() {
         }
     }
 
-    // Parse the arguments by sending env
-    let args: Args = parse_arguments();
-    println!("{:?}", args);
-
-    // Validate Arguments
-    let validation = validate_arguments(&args);
-    match validation {
-        Ok(()) => println!("All arguments are valid"),
-        Err(e) => {
-            eprintln!("Argument validation failed: {}", e);
-            std::process::exit(1);
-        }
-    }
+    // Parse the arguments
+    let cli_args: Cli = parse_arguments();
+    println!("{:?}", cli_args);
 
     // Call the appropriate command
-    call_appropriate_command(&args);
-    println!("Done appropriate command");
+    if let Err(e) = dispatch_command(&cli_args) {
+        eprintln!("Error executing command: {}", e);
+        std::process::exit(1);
+    }
+    println!("Command finished.");
 }

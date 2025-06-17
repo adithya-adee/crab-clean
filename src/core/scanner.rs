@@ -1,62 +1,97 @@
-//TODO : Add pair for interactive delete
-use std::path::{Path, PathBuf};
+use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::fs::{self, File};
+use std::io::{BufReader, Read};
+use std::path::PathBuf;
+use std::time::Duration;
 
-pub fn get_duplicates(files: &Vec<PathBuf>, base_dir_path: &String) -> Vec<PathBuf> {
-    if files.len() < 2 {
-        println!("Not enough files to find duplicates!!");
+//TODO : Implement the fastest duplicate find function
+// Step 1 : Group the files with same size
+// Step 2 : Calculate the hash (SHA256) for each file
+// Step 3 : Store it in hash map
+pub fn get_duplicates(files: &Vec<PathBuf>) -> Vec<PathBuf> {
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.blue} {msg}")
+            .unwrap()
+            .tick_strings(&[
+                "▹▹▹▹▹",
+                "▸▹▹▹▹",
+                "▹▸▹▹▹",
+                "▹▹▸▹▹",
+                "▹▹▹▸▹",
+                "▹▹▹▹▸",
+                "▪▪▪▪▪",
+            ]),
+    );
+    pb.set_message(format!("Scanning directory for duplicates"));
+
+    //Step 1 : Group Files by size
+    let mut files_by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();
+    for file_path in files {
+        if !file_path.is_file() {
+            continue;
+        }
+        if !fs::metadata(file_path).unwrap().is_file() {
+            continue;
+        }
+        files_by_size
+            .entry(fs::metadata(file_path).unwrap().len())
+            .or_default()
+            .push(file_path.clone());
     }
-
-    let base_dir = Path::new(base_dir_path);
 
     let mut duplicate_files: Vec<PathBuf> = Vec::new();
 
-    for i in 2..files.len() {
-        for j in i + 1..files.len() {
-            let file1 = &files[i];
-            let file2 = &files[j];
-            let file1 = base_dir.join(&file1);
-            let file2 = base_dir.join(&file2);
-
-            if duplicate_files.contains(&file2) {
-                continue;
-            }
-            if compare_file(&file1, &file2) {
-                println!("File : {:?} , {:?}", file1, file2);
-                if !duplicate_files.contains(&file2) {
-                    duplicate_files.push(file2.clone());
+    // Step 2 : For files of the same size , group by hash
+    // To make it fast use parrellism
+    let potential_duplicate_files: Vec<Vec<PathBuf>> = files_by_size
+        .into_par_iter()
+        .filter(|(_, paths)| paths.len() > 1)
+        .flat_map(|(_, paths)| {
+            let mut hashes: HashMap<String, Vec<PathBuf>> = HashMap::new();
+            for path in paths {
+                if let Ok(hash) = calculate_file_hash(&path) {
+                    hashes.entry(hash).or_default().push(path);
+                } else {
+                    eprintln!("Warning : Couldn't hash file {:?}", path);
                 }
             }
+            hashes
+                .into_values()
+                .filter(|group| group.len() > 1)
+                .collect::<Vec<Vec<PathBuf>>>()
+        })
+        .collect();
+
+    println!("\n--- Potential Duplicate Files (grouped by hash) ---");
+    if potential_duplicate_files.is_empty() {
+        println!("  No duplicate files found based on size and hash.");
+    } else {
+        for group in potential_duplicate_files {
+            duplicate_files.extend_from_slice(&group[1..]);
         }
     }
-    // println!("{:?}", duplicate_files);
-
+    pb.finish_with_message("Scan complete for duplicates.");
+    println!("Number of duplicate files : {}", duplicate_files.len());
     duplicate_files
 }
 
-fn compare_file(file1: &PathBuf, file2: &PathBuf) -> bool {
-    if !file1.exists() {
-        // eprintln!("Warning: File for comparison does not exist: {:?}", file1);
-        return false;
-    }
-    if !file2.exists() {
-        // eprintln!("Warning: File for comparison does not exist: {:?}", file2);
-        return false;
-    }
+fn calculate_file_hash(path: &PathBuf) -> Result<String, std::io::Error> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = Sha256::new();
+    let mut buffer = [0; 8192]; // 8KB buffer
 
-    let output_res = std::process::Command::new("cmp")
-        .arg("--silent")
-        .arg(file1)
-        .arg(file2)
-        .output();
-
-    println!("{:?}", output_res);
-
-    match output_res {
-        Ok(output) => {
-            // cmp exits with 0 if files are the same, 1 if different, >1 on error.
-            // output.status.success() checks for exit code 0.
-            output.status.success()
+    loop {
+        let n = reader.read(&mut buffer)?;
+        if n == 0 {
+            break;
         }
-        Err(_e) => false,
+        hasher.update(&buffer[..n]);
     }
+    Ok(format!("{:x}", hasher.finalize()))
 }

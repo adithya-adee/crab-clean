@@ -1,8 +1,5 @@
 use console::Term;
-use std::{
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{path::PathBuf, process::Command};
 
 pub fn start_cli() -> Result<(), Box<dyn std::error::Error + 'static>> {
     let term = Term::stdout();
@@ -11,7 +8,7 @@ pub fn start_cli() -> Result<(), Box<dyn std::error::Error + 'static>> {
     Ok(())
 }
 
-pub fn interactive_deleting(files: Vec<PathBuf>, base_dir_path: &String) {
+pub fn interactive_deleting(files: Vec<PathBuf>) {
     let term = Term::stdout();
 
     let pwd = Command::new("pwd").output();

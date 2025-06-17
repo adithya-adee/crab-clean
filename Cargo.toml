@@ -6,3 +6,6 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
 console = "0.15.11"
+indicatif = "0.17.11"
+rayon = "1.10.0"
+sha2 = "0.10.9"

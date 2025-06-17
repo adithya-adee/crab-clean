@@ -1,27 +1,41 @@
-use clap::Parser;
-
-// pub enum CoreOption {
-
-// }
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "Pase config")]
-#[command(version = "1.0")]
-#[command(about = "Parse arguments", long_about = None)]
-pub struct Args {
-    ///
-    #[arg(default_value = "duplicate")]
-    pub core_option: String,
-
-    #[arg(default_value = "./fake")]
-    pub file_path: String,
-
-    #[arg(default_value = "--dry-run")]
-    pub flag: String,
+#[command(
+    name = "declutter",
+    version = "1.0",
+    about = "Declutter your file system"
+)]
+#[command(propagate_version = true)]
+pub struct Cli {
+    // TODO : Add optional for Commands
+    #[command(subcommand)]
+    pub command: Commands,
 }
 
-pub fn parse_arguments() -> Args {
-    let args = Args::parse();
+#[derive(Subcommand, Debug)]
+pub enum Commands {
+    Duplicate {
+        #[arg(default_value = ".")]
+        path: PathBuf,
 
-    args
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+
+        #[arg(short = 'r', long)]
+        run: bool,
+    },
+    Unused {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(short, long, default_value_t = 30)]
+        age: u32,
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+    },
+}
+
+pub fn parse_arguments() -> Cli {
+    Cli::parse()
 }
