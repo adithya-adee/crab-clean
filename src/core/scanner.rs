@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 //TODO : Implement the fastest duplicate find function
 // Step 1 : Group the files with same size
@@ -94,4 +94,60 @@ fn calculate_file_hash(path: &PathBuf) -> Result<String, std::io::Error> {
         hasher.update(&buffer[..n]);
     }
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+pub fn get_unused(files: &Vec<PathBuf>, age: &u32) -> Vec<PathBuf> {
+    let pb = ProgressBar::new_spinner();
+    pb.enable_steady_tick(Duration::from_millis(120));
+    pb.set_style(
+        ProgressStyle::with_template("{spinner:.blue} {msg}")
+            .unwrap()
+            .tick_strings(&[
+                "▹▹▹▹▹",
+                "▸▹▹▹▹",
+                "▹▸▹▹▹",
+                "▹▹▸▹▹",
+                "▹▹▹▸▹",
+                "▹▹▹▹▸",
+                "▪▪▪▪▪",
+            ]),
+    );
+    pb.set_message(format!(
+        "Scanning directory for used itesm with age : {}",
+        age
+    ));
+
+    let age: u64 = (*age).into();
+    let threshold = SystemTime::now()
+        .checked_sub(Duration::from_secs(age * 86400))
+        .unwrap_or(SystemTime::UNIX_EPOCH);
+
+    println!("Threshold : {:?}", threshold);
+
+    let unused_files: Vec<PathBuf> = files
+        .par_iter()
+        .filter_map(|file| {
+            if let Ok(metadata) = fs::metadata(file) {
+                if let Ok(accessed) = metadata.accessed() {
+                    if accessed < threshold {
+                        return Some(file.clone());
+                    }
+                } else {
+                    eprintln!(
+                        "Warning: Could not retrieve access time for file {:?}",
+                        file
+                    );
+                }
+            } else {
+                eprintln!("Warning: Could not retrieve metadata for file {:?}", file);
+            }
+            None
+        })
+        .collect();
+
+    println!("No of unused file : {}", unused_files.len());
+
+    pb.finish_with_message("Scan Complete");
+
+    unused_files
 }

@@ -20,9 +20,6 @@ pub enum Commands {
         #[arg(default_value = ".")]
         path: PathBuf,
 
-        #[arg(short = 'n', long)]
-        dry_run: bool,
-
         #[arg(short = 'r', long)]
         run: bool,
     },
@@ -31,8 +28,8 @@ pub enum Commands {
         path: PathBuf,
         #[arg(short, long, default_value_t = 30)]
         age: u32,
-        #[arg(short = 'n', long)]
-        dry_run: bool,
+        #[arg(short = 'r', long)]
+        run: bool,
     },
 }
 
