@@ -1,34 +1,51 @@
 use std::path::PathBuf;
 
 use crate::{
-    cli::app::interactive_deleting,
-    core::{analyzer::get_file_tree, scanner::get_duplicates},
+    DeclutterError,
+    core::{
+        algorithms::duplicate_algo::get_duplicates,
+        analyser::{interactive_deleting, non_interactive_deleting},
+        scanner::get_file_tree,
+    },
 };
 
-pub fn duplicate_with_dry_run(file_path: &String) {
-    let v = get_file_tree(&file_path);
+pub fn duplicate_with_dry_run(path: &PathBuf) -> Result<(), DeclutterError> {
+    let files = get_file_tree(path)?;
+    let duplicates = get_duplicates(&files);
+    let length = &duplicates.len();
 
-    match v {
-        Ok(v) => ddr(v),
-        Err(e) => println!("Failed to get file tree : {:?}", e),
+    if duplicates.is_empty() {
+        println!("No duplicate files found.");
+    } else {
+        println!("Found the following duplicate files (dry run, no files deleted):");
+        println!("Number of Duplicate Files : {}", length);
     }
+
+    Ok(())
 }
 
-fn ddr(files: Vec<PathBuf>) {
-    let _duplicate_files = get_duplicates(&files);
-    // println!("{:?}", duplicate_files);
-}
-
-pub fn duplicate_with_run(file_path: &String) {
-    let v = get_file_tree(&file_path);
-
-    match v {
-        Ok(v) => dr(v),
-        Err(e) => println!("Failed to get file tree : {:?}", e),
-    }
-}
-
-fn dr(files: Vec<PathBuf>) {
+pub fn duplicate_with_run(path: &PathBuf) -> Result<(), DeclutterError> {
+    let files = get_file_tree(path)?;
     let duplicate_files = get_duplicates(&files);
-    interactive_deleting(duplicate_files);
+
+    if duplicate_files.is_empty() {
+        println!("No duplicate files found.");
+    } else {
+        println!("Found the following duplicate files (run with interactive deletion)");
+
+        println!("Do you want to enable interactive deleting files ? (y/n)");
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .map_err(|e| DeclutterError::Io(e))?;
+
+        let confirmation = input.trim().eq_ignore_ascii_case("y");
+        if confirmation {
+            interactive_deleting(&duplicate_files)?;
+        } else {
+            non_interactive_deleting(&duplicate_files)?;
+        }
+        println!("{}", duplicate_files.len())
+    }
+    Ok(())
 }

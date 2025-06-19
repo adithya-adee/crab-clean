@@ -1,153 +1,32 @@
-use indicatif::{ProgressBar, ProgressStyle};
-use rayon::prelude::*;
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{BufReader, Read};
-use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
+use crate::{error::DeclutterError, utils::progress::create_progress_bar};
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
-//TODO : Implement the fastest duplicate find function
-// Step 1 : Group the files with same size
-// Step 2 : Calculate the hash (SHA256) for each file
-// Step 3 : Store it in hash map
-pub fn get_duplicates(files: &Vec<PathBuf>) -> Vec<PathBuf> {
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} {msg}")
-            .unwrap()
-            .tick_strings(&[
-                "▹▹▹▹▹",
-                "▸▹▹▹▹",
-                "▹▸▹▹▹",
-                "▹▹▸▹▹",
-                "▹▹▹▸▹",
-                "▹▹▹▹▸",
-                "▪▪▪▪▪",
-            ]),
-    );
-    pb.set_message(format!("Scanning directory for duplicates"));
+pub fn get_file_tree(base_dir_path: &PathBuf) -> Result<Vec<PathBuf>, DeclutterError> {
+    let base_dir = Path::new(base_dir_path);
 
-    //Step 1 : Group Files by size
-    let mut files_by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();
-    for file_path in files {
-        if !file_path.is_file() {
-            continue;
-        }
-        if !fs::metadata(file_path).unwrap().is_file() {
-            continue;
-        }
-        files_by_size
-            .entry(fs::metadata(file_path).unwrap().len())
-            .or_default()
-            .push(file_path.clone());
+    if !base_dir.is_dir() {
+        return Err(DeclutterError::InvalidArgument(format!(
+            "Provided path {:?} is not a directory or does not exist",
+            base_dir_path
+        )));
     }
 
-    let mut duplicate_files: Vec<PathBuf> = Vec::new();
-
-    // Step 2 : For files of the same size , group by hash
-    // To make it fast use parrellism
-    let potential_duplicate_files: Vec<Vec<PathBuf>> = files_by_size
-        .into_par_iter()
-        .filter(|(_, paths)| paths.len() > 1)
-        .flat_map(|(_, paths)| {
-            let mut hashes: HashMap<String, Vec<PathBuf>> = HashMap::new();
-            for path in paths {
-                if let Ok(hash) = calculate_file_hash(&path) {
-                    hashes.entry(hash).or_default().push(path);
-                } else {
-                    eprintln!("Warning : Couldn't hash file {:?}", path);
-                }
-            }
-            hashes
-                .into_values()
-                .filter(|group| group.len() > 1)
-                .collect::<Vec<Vec<PathBuf>>>()
-        })
-        .collect();
-
-    println!("\n--- Potential Duplicate Files (grouped by hash) ---");
-    if potential_duplicate_files.is_empty() {
-        println!("  No duplicate files found based on size and hash.");
-    } else {
-        for group in potential_duplicate_files {
-            duplicate_files.extend_from_slice(&group[1..]);
-        }
-    }
-    pb.finish_with_message("Scan complete for duplicates.");
-    println!("Number of duplicate files : {}", duplicate_files.len());
-    duplicate_files
-}
-
-fn calculate_file_hash(path: &PathBuf) -> Result<String, std::io::Error> {
-    let file = File::open(path)?;
-    let mut reader = BufReader::new(file);
-    let mut hasher = Sha256::new();
-    let mut buffer = [0; 8192]; // 8KB buffer
-
-    loop {
-        let n = reader.read(&mut buffer)?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buffer[..n]);
-    }
-    Ok(format!("{:x}", hasher.finalize()))
-}
-
-pub fn get_unused(files: &Vec<PathBuf>, age: &u32) -> Vec<PathBuf> {
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(120));
-    pb.set_style(
-        ProgressStyle::with_template("{spinner:.blue} {msg}")
-            .unwrap()
-            .tick_strings(&[
-                "▹▹▹▹▹",
-                "▸▹▹▹▹",
-                "▹▸▹▹▹",
-                "▹▹▸▹▹",
-                "▹▹▹▸▹",
-                "▹▹▹▹▸",
-                "▪▪▪▪▪",
-            ]),
-    );
-    pb.set_message(format!(
-        "Scanning directory for used itesm with age : {}",
-        age
+    let pb = create_progress_bar(&format!(
+        "Scanning files in {}...",
+        base_dir_path.to_str().unwrap_or("./")
     ));
 
-    let age: u64 = (*age).into();
-    let threshold = SystemTime::now()
-        .checked_sub(Duration::from_secs(age * 86400))
-        .unwrap_or(SystemTime::UNIX_EPOCH);
-
-    println!("Threshold : {:?}", threshold);
-
-    let unused_files: Vec<PathBuf> = files
-        .par_iter()
-        .filter_map(|file| {
-            if let Ok(metadata) = fs::metadata(file) {
-                if let Ok(accessed) = metadata.accessed() {
-                    if accessed < threshold {
-                        return Some(file.clone());
-                    }
-                } else {
-                    eprintln!(
-                        "Warning: Could not retrieve access time for file {:?}",
-                        file
-                    );
-                }
-            } else {
-                eprintln!("Warning: Could not retrieve metadata for file {:?}", file);
-            }
-            None
-        })
+    //TODO : Add max depth
+    let file_list: Vec<PathBuf> = WalkDir::new(base_dir_path)
+        .max_depth(3)
+        .into_iter()
+        .filter_map(|e| e.ok().map(|entry| entry.into_path()))
         .collect();
 
-    println!("No of unused file : {}", unused_files.len());
+    pb.finish_with_message("Scan complete.");
 
-    pb.finish_with_message("Scan Complete");
+    println!("Total Number of Files Scanned : {:?}", file_list.len());
 
-    unused_files
+    Ok(file_list)
 }

@@ -1,2 +1,3 @@
-pub mod analyzer;
+pub mod algorithms;
+pub mod analyser;
 pub mod scanner;
