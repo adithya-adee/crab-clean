@@ -31,6 +31,13 @@ pub enum Commands {
         #[arg(short = 'n', long)]
         dry_run: bool,
     },
+    Group {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+    },
 }
 
 pub fn parse_arguments() -> Cli {

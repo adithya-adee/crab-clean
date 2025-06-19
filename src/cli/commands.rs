@@ -44,6 +44,23 @@ pub fn dispatch_command(cli: &Cli) -> Result<(), DeclutterError> {
                 ));
             }
         }
+        Commands::Group { path, dry_run } => {
+            if *dry_run {
+                println!(
+                    "Unused command with dry run: path={:?}, dry_run={}",
+                    path, dry_run
+                );
+            } else if !*dry_run {
+                println!(
+                    "Unused command with dry run: path={:?}, dry_run={}",
+                    path, dry_run
+                );
+            } else {
+                return Err(DeclutterError::Config(
+                    "Unused command not yet implemented".to_string(),
+                ));
+            }
+        }
     }
     Ok(())
 }
