@@ -1,2 +1,163 @@
-# declutter
-Declutter CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
+# Declutter CLI
+
+[![Crates.io](https://img.shields.io/crates/v/declutter.svg)](https://crates.io/crates/declutter)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
+[![Build Status](https://github.com/your-username/declutter/workflows/CI/badge.svg)](https://github.com/your-username/declutter/actions)
+
+> Declutter CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
+
+## Features
+
+- **🔍 Duplicate File Detection**: Identifies exact duplicate files using SHA-256 content hashing
+- **⏰ Unused File Cleanup**: Finds files that haven't been accessed for a specified number of days
+- **🎯 Interactive Deletion**: Safe, user-confirmed deletion with progress tracking
+- **⚡ High Performance**: Multi-threaded scanning and hashing using Rayon
+- **🛡️ Cross-Platform**: Works on Linux, macOS, and Windows
+- **📊 Progress Visualization**: Real-time progress bars and spinners
+- **🔄 Dry Run Mode**: Preview operations without making changes
+
+## Installation
+
+### From crates.io (Recommended)
+
+```bash
+cargo install declutter
+```
+
+### From Source
+
+```bash
+git clone https://github.com/your-username/declutter.git
+cd declutter
+cargo install --path .
+```
+
+### Pre-compiled Binaries
+
+Download pre-compiled binaries from the [Releases page](https://github.com/your-username/declutter/releases).
+
+## Quick Start
+
+### Find Duplicate Files
+
+```bash
+# Dry run (preview only)
+declutter duplicate /path/to/directory --dry-run
+
+# Interactive deletion
+declutter duplicate /path/to/directory
+
+# Current directory
+declutter duplicate .
+```
+
+### Find Unused Files
+
+```bash
+# Find files unused for 30 days (default)
+declutter unused /path/to/directory --dry-run
+
+# Find files unused for 60 days
+declutter unused /path/to/directory --age 60
+
+# Interactive deletion
+declutter unused /path/to/directory --age 30
+```
+
+## Usage
+
+```
+Declutter your file system by finding and managing duplicate and unused files
+
+Usage: declutter <COMMAND>
+
+Commands:
+  duplicate  Find and manage duplicate files
+  unused     Find and manage unused files
+  help       Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+### Duplicate Command
+
+```
+Find and manage duplicate files
+
+Usage: declutter duplicate [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]  Path to the directory to scan [default: .]
+
+Options:
+  -n, --dry-run  Perform a dry run without deleting files
+  -h, --help     Print help
+```
+
+### Unused Command
+
+```
+Find and manage unused files
+
+Usage: declutter unused [OPTIONS] [PATH]
+
+Arguments:
+  [PATH]  Path to the directory to scan [default: .]
+
+Options:
+  -a, --age <AGE>  Age in days for a file to be considered unused [default: 30]
+  -n, --dry-run    Perform a dry run without deleting files
+  -h, --help       Print help
+```
+
+## Examples
+
+```bash
+# Find duplicates in Downloads folder (dry run)
+declutter duplicate ~/Downloads --dry-run
+
+# Clean up unused files older than 90 days in project directory
+declutter unused ~/projects --age 90
+
+# Interactive duplicate cleanup in current directory
+declutter duplicate .
+```
+
+## Safety Features
+
+- **Dry run by default**: Use `--dry-run` to preview changes
+- **Interactive confirmation**: Each file deletion requires user confirmation
+- **Progress tracking**: Visual feedback during long operations
+- **Error handling**: Graceful error reporting and recovery
+
+## Performance
+
+- **Multi-threaded**: Uses Rayon for parallel file processing
+- **Efficient hashing**: SHA-256 with optimized buffer sizes
+- **Smart grouping**: Files are first grouped by size before hashing
+- **Memory efficient**: Streaming file processing for large files
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under either of
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+
+at your option.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.

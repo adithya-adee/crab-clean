@@ -2,6 +2,20 @@
 name = "declutter"
 version = "0.1.0"
 edition = "2024"
+authors = ["Adithya A adithya25905@gmail.com"]
+description = "A CLI tool to declutter your file system by finding and managing duplicate and unused files"
+documentation = "https://docs.rs/declutter"
+readme = "README.md"
+homepage = "https://github.com/adithya-adee/declutter"
+repository = "https://github.com/adithya-adee/declutter"
+license = "MIT"
+keywords = ["cli", "filesystem", "duplicate-files", "cleanup", "organizer"]
+categories = ["command-line-utilities", "filesystem"]
+exclude = ["tests/*", ".github/*", "*.md", "*.excalidraw"]
+
+[[bin]]
+name = "declutter"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
@@ -10,3 +24,8 @@ indicatif = "0.17.11"
 rayon = "1.10.0"
 sha2 = "0.10.9"
 walkdir = "2.5.0"
+
+[dev-dependencies]
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"
