@@ -1,5 +1,5 @@
-use carb_clean::cli::commands::unused::unused_with_dry_run;
-use carb_clean::{cli::commands::duplicate::duplicate_with_dry_run, core::scanner::get_file_tree};
+use crab_clean::cli::commands::unused::unused_with_dry_run;
+use crab_clean::{cli::commands::duplicate::duplicate_with_dry_run, core::scanner::get_file_tree};
 use std::fs::remove_dir_all;
 use std::io;
 use std::{fs, io::Write, path::PathBuf};

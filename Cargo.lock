@@ -116,21 +116,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "793db76d6187cd04dff33004d8e6c9cc4e05cd330500379d2394209271b4aeee"
 
 [[package]]
-name = "carb-clean"
-version = "0.1.0"
-dependencies = [
- "assert_cmd",
- "clap",
- "console",
- "indicatif",
- "predicates",
- "rayon",
- "sha2",
- "tempfile",
- "walkdir",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -202,6 +187,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "crab-clean"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "clap",
+ "console",
+ "indicatif",
+ "predicates",
+ "rayon",
+ "sha2",
+ "tempfile",
+ "walkdir",
 ]
 
 [[package]]
