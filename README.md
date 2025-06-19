@@ -1,10 +1,9 @@
 # crabclean CLI
 
-[![Crates.io](https://img.shields.io/crates/v/crabclean.svg)](https://crates.io/crates/crabclean)
+[![Crates.io](https://img.shields.io/badge/crates_io-blue.svg)]([https://crates.io/crates/crab-clean](https://crates.io/crates/crab-clean))
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
-[![Build Status](https://github.com/your-username/crabclean/workflows/CI/badge.svg)](https://github.com/your-username/crabclean/actions)
 
-> crabclean CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
+> Crab Clean CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
 
 ## Features
 
@@ -27,14 +26,14 @@ cargo install crabclean
 ### From Source
 
 ```bash
-git clone https://github.com/your-username/crabclean.git
+git clone https://github.com/adithya-adee/crabclean.git
 cd crabclean
 cargo install --path .
 ```
 
 ### Pre-compiled Binaries
 
-Download pre-compiled binaries from the [Releases page](https://github.com/your-username/crabclean/releases).
+Download pre-compiled binaries from the [Releases page](https://github.com/adithya-adee/crabclean/releases).
 
 ## Quick Start
 
@@ -55,10 +54,12 @@ crabclean duplicate .
 
 ```bash
 # Find files unused for 30 days (default)
-crabclean unused /path/to/directory --dry-run
+crabclean unused /path/to/directory --dry-run 
+OR
+crabclean unused /path/to/directory -n
 
-# Find files unused for 60 days
-crabclean unused /path/to/directory --age 60
+# Find files unused for 60 days without interactive/automatic deletion
+crabclean unused /path/to/directory --age 60 -n
 
 # Interactive deletion
 crabclean unused /path/to/directory --age 30
