@@ -3,7 +3,7 @@ use std::io;
 use std::path::PathBuf;
 
 #[derive(Debug)]
-pub enum DeclutterError {
+pub enum CrabcleanError {
     Io(io::Error),
     FileAccess { path: PathBuf, source: io::Error },
     Config(String),
@@ -11,9 +11,9 @@ pub enum DeclutterError {
     InvalidArgument(String),
 }
 
-impl std::error::Error for DeclutterError {}
+impl std::error::Error for CrabcleanError {}
 
-impl fmt::Display for DeclutterError {
+impl fmt::Display for CrabcleanError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(err) => write!(f, "I/O error: {}", err),
@@ -27,10 +27,10 @@ impl fmt::Display for DeclutterError {
     }
 }
 
-impl From<io::Error> for DeclutterError {
+impl From<io::Error> for CrabcleanError {
     fn from(err: io::Error) -> Self {
         Self::Io(err)
     }
 }
 
-pub type DeclutterResult<T> = Result<T, DeclutterError>;
+pub type DeclutterResult<T> = Result<T, CrabcleanError>;

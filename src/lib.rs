@@ -12,7 +12,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use declutter::core::algorithms::duplicate_algo::get_duplicates;
+//! use clean_crab::core::algorithms::duplicate_algo::get_duplicates;
 //! use std::path::PathBuf;
 //!
 //! let files = vec![PathBuf::from("file1.txt"), PathBuf::from("file2.txt")];
@@ -27,4 +27,4 @@ pub mod utils; // Utility functions
 
 // Re-export commonly used types
 pub use config::settings;
-pub use error::DeclutterError;
+pub use error::CrabcleanError;

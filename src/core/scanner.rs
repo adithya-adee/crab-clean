@@ -1,12 +1,12 @@
-use crate::{error::DeclutterError, utils::progress::create_progress_bar};
+use crate::{error::CrabcleanError, utils::progress::create_progress_bar};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-pub fn get_file_tree(base_dir_path: &PathBuf) -> Result<Vec<PathBuf>, DeclutterError> {
+pub fn get_file_tree(base_dir_path: &PathBuf) -> Result<Vec<PathBuf>, CrabcleanError> {
     let base_dir = Path::new(base_dir_path);
 
     if !base_dir.is_dir() {
-        return Err(DeclutterError::InvalidArgument(format!(
+        return Err(CrabcleanError::InvalidArgument(format!(
             "Provided path {:?} is not a directory or does not exist",
             base_dir_path
         )));

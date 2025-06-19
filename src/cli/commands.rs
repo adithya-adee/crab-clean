@@ -7,10 +7,10 @@ use crate::{
         unused::{unused_with_dry_run, unused_with_run},
     },
     config::settings::{Cli, Commands},
-    error::DeclutterError,
+    error::CrabcleanError,
 };
 
-pub fn dispatch_command(cli: &Cli) -> Result<(), DeclutterError> {
+pub fn dispatch_command(cli: &Cli) -> Result<(), CrabcleanError> {
     match &cli.command {
         Commands::Duplicate { path, dry_run } => {
             if *dry_run {
@@ -20,7 +20,7 @@ pub fn dispatch_command(cli: &Cli) -> Result<(), DeclutterError> {
                 println!("Executing duplicate command at path: {:?}", path);
                 duplicate_with_run(path)?;
             } else {
-                return Err(DeclutterError::Config(
+                return Err(CrabcleanError::Config(
                     "Unused command not yet implemented".to_string(),
                 ));
             }
@@ -39,7 +39,7 @@ pub fn dispatch_command(cli: &Cli) -> Result<(), DeclutterError> {
                 );
                 unused_with_run(path, age)?;
             } else {
-                return Err(DeclutterError::Config(
+                return Err(CrabcleanError::Config(
                     "Unused command not yet implemented".to_string(),
                 ));
             }

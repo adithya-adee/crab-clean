@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    DeclutterError,
+    CrabcleanError,
     core::{
         algorithms::duplicate_algo::get_duplicates,
         analyser::{interactive_deleting, non_interactive_deleting},
@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-pub fn duplicate_with_dry_run(path: &PathBuf) -> Result<(), DeclutterError> {
+pub fn duplicate_with_dry_run(path: &PathBuf) -> Result<(), CrabcleanError> {
     let files = get_file_tree(path)?;
     let duplicates = get_duplicates(&files);
     let length = &duplicates.len();
@@ -24,7 +24,7 @@ pub fn duplicate_with_dry_run(path: &PathBuf) -> Result<(), DeclutterError> {
     Ok(())
 }
 
-pub fn duplicate_with_run(path: &PathBuf) -> Result<(), DeclutterError> {
+pub fn duplicate_with_run(path: &PathBuf) -> Result<(), CrabcleanError> {
     let files = get_file_tree(path)?;
     let duplicate_files = get_duplicates(&files);
 
@@ -38,7 +38,7 @@ pub fn duplicate_with_run(path: &PathBuf) -> Result<(), DeclutterError> {
         let mut input = String::new();
         std::io::stdin()
             .read_line(&mut input)
-            .map_err(|e| DeclutterError::Io(e))?;
+            .map_err(|e| CrabcleanError::Io(e))?;
 
         let confirmation = input.trim().eq_ignore_ascii_case("y");
         if confirmation {

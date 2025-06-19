@@ -3,14 +3,14 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "declutter",
-    version = "1.0",
-    about = "Declutter your file system",
+    name = "crabclean",
+    version = "0.1.0",
+    about = "Clean up your file system",
     long_about = "
-Declutter your file system by finding and managing duplicate and unused files.
+Clean up your file system by finding and managing duplicate and unused files.
 
 USAGE:
-    declutter <COMMAND> [OPTIONS] [PATH]
+    crabclean <COMMAND> [OPTIONS] [PATH]
 
 COMMANDS:
     duplicate    Find and manage duplicate files
@@ -28,11 +28,11 @@ OPTIONS:
     -V, --version     Print version information
 
 EXAMPLES:
-    declutter duplicate --dry-run
-    declutter duplicate /path/to/dir --dry-run
-    declutter duplicate ~/Downloads
-    declutter unused ~/Documents --age 60 --dry-run
-    declutter unused --age 90
+    crabclean duplicate --dry-run
+    crabclean duplicate /path/to/dir --dry-run
+    crabclean duplicate ~/Downloads
+    crabclean unused ~/Documents --age 60 --dry-run
+    crabclean unused --age 90
 
 NOTES:
     - If you omit the --dry-run flag, the tool will prompt you for each file before deletion.

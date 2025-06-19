@@ -6,10 +6,10 @@ use crate::{
         analyser::{interactive_deleting, non_interactive_deleting},
         scanner::get_file_tree,
     },
-    error::DeclutterError,
+    error::CrabcleanError,
 };
 
-pub fn unused_with_dry_run(file_path: &PathBuf, age: &u32) -> Result<(), DeclutterError> {
+pub fn unused_with_dry_run(file_path: &PathBuf, age: &u32) -> Result<(), CrabcleanError> {
     let files = get_file_tree(&file_path)?;
     let unused_files = get_unused(&files, age)?;
 
@@ -26,7 +26,7 @@ pub fn unused_with_dry_run(file_path: &PathBuf, age: &u32) -> Result<(), Declutt
     Ok(())
 }
 
-pub fn unused_with_run(file_path: &PathBuf, age: &u32) -> Result<(), DeclutterError> {
+pub fn unused_with_run(file_path: &PathBuf, age: &u32) -> Result<(), CrabcleanError> {
     let files = get_file_tree(&file_path)?;
     let unused_files = get_unused(&files, age)?;
 
@@ -39,7 +39,7 @@ pub fn unused_with_run(file_path: &PathBuf, age: &u32) -> Result<(), DeclutterEr
         let mut input = String::new();
         std::io::stdin()
             .read_line(&mut input)
-            .map_err(|e| DeclutterError::Io(e))?;
+            .map_err(|e| CrabcleanError::Io(e))?;
 
         let confirmation = input.trim().eq_ignore_ascii_case("y");
         if confirmation {

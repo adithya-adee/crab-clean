@@ -1,4 +1,4 @@
-use crate::error::{DeclutterError, DeclutterResult};
+use crate::error::{CrabcleanError, DeclutterResult};
 use crate::utils::progress::create_progress_bar;
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -9,7 +9,7 @@ use std::time::{Duration, SystemTime};
 
 pub fn get_unused(files: &Vec<PathBuf>, age: &u32) -> DeclutterResult<Vec<PathBuf>> {
     if *age == 0 {
-        return Err(DeclutterError::InvalidArgument(
+        return Err(CrabcleanError::InvalidArgument(
             "Age cannot be zero. Please provide a positive age in days.".to_string(),
         ));
     }
@@ -58,7 +58,7 @@ pub fn get_unused(files: &Vec<PathBuf>, age: &u32) -> DeclutterResult<Vec<PathBu
             Err(e) => {
                 eprintln!(
                     "Warning: {}. Skipping file {:?}.",
-                    DeclutterError::FileAccess {
+                    CrabcleanError::FileAccess {
                         path: file.clone(),
                         source: e,
                     },

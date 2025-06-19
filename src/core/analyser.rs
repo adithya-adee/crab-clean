@@ -1,4 +1,4 @@
-use crate::DeclutterError;
+use crate::CrabcleanError;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::path::PathBuf;
@@ -12,9 +12,9 @@ use std::path::PathBuf;
 /// * `files`: A slice of `PathBuf` pointing to the files to be considered for deletion.
 ///
 /// # Errors
-/// Returns a `DeclutterError` if there's an issue with terminal interaction
+/// Returns a `CrabcleanError` if there's an issue with terminal interaction
 /// or if a file deletion fails.
-pub fn interactive_deleting(files: &[PathBuf]) -> Result<(), DeclutterError> {
+pub fn interactive_deleting(files: &[PathBuf]) -> Result<(), CrabcleanError> {
     if files.is_empty() {
         println!("No files to delete.");
         return Ok(());
@@ -45,7 +45,7 @@ pub fn interactive_deleting(files: &[PathBuf]) -> Result<(), DeclutterError> {
         let mut input = String::new();
         std::io::stdin()
             .read_line(&mut input)
-            .map_err(|e| DeclutterError::Io(e))?;
+            .map_err(|e| CrabcleanError::Io(e))?;
 
         let confirmation = input.trim().eq_ignore_ascii_case("y");
 
@@ -57,7 +57,7 @@ pub fn interactive_deleting(files: &[PathBuf]) -> Result<(), DeclutterError> {
                 Err(e) => {
                     // On failure, stop everything and report the specific error.
                     pb.finish_with_message("Deletion failed.");
-                    return Err(DeclutterError::FileAccess {
+                    return Err(CrabcleanError::FileAccess {
                         path: file.clone(),
                         source: e,
                     });
@@ -75,7 +75,7 @@ pub fn interactive_deleting(files: &[PathBuf]) -> Result<(), DeclutterError> {
     Ok(())
 }
 
-pub fn non_interactive_deleting(files: &Vec<PathBuf>) -> Result<(), DeclutterError> {
+pub fn non_interactive_deleting(files: &Vec<PathBuf>) -> Result<(), CrabcleanError> {
     if files.is_empty() {
         println!("No files to delete.");
         return Ok(());
@@ -107,7 +107,7 @@ pub fn non_interactive_deleting(files: &Vec<PathBuf>) -> Result<(), DeclutterErr
                 Err(e) => {
                     // On failure, stop everything and report the specific error.
                     pb.finish_with_message("Deletion failed.");
-                    return Err(DeclutterError::FileAccess {
+                    return Err(CrabcleanError::FileAccess {
                         path: file.clone(),
                         source: e,
                     });
@@ -117,7 +117,7 @@ pub fn non_interactive_deleting(files: &Vec<PathBuf>) -> Result<(), DeclutterErr
             pb.inc(1);
             Ok(())
         })
-        .collect::<Result<(), DeclutterError>>()?;
+        .collect::<Result<(), CrabcleanError>>()?;
 
     Ok(())
 }

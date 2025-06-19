@@ -1,4 +1,4 @@
-use declutter::cli::app::start_cli;
+use carb_clean::cli::app::start_cli;
 
 fn main() {
     // Start the command line tool here
