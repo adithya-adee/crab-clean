@@ -32,6 +32,7 @@ pub fn duplicate_with_run(path: &PathBuf) -> Result<(), DeclutterError> {
         println!("No duplicate files found.");
     } else {
         println!("Found the following duplicate files (run with interactive deletion)");
+        println!("{}", duplicate_files.len());
 
         println!("Do you want to enable interactive deleting files ? (y/n)");
         let mut input = String::new();
@@ -45,7 +46,6 @@ pub fn duplicate_with_run(path: &PathBuf) -> Result<(), DeclutterError> {
         } else {
             non_interactive_deleting(&duplicate_files)?;
         }
-        println!("{}", duplicate_files.len())
     }
     Ok(())
 }

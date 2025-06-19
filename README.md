@@ -66,15 +66,19 @@ declutter unused /path/to/directory --age 30
 
 ## Usage
 
-```
+```text
 Declutter your file system by finding and managing duplicate and unused files
 
-Usage: declutter <COMMAND>
+Usage: declutter <COMMAND> <SOURCE_DIRECTORY> <flag>
 
 Commands:
   duplicate  Find and manage duplicate files
   unused     Find and manage unused files
   help       Print this message or the help of the given subcommand(s)
+
+Flag:
+  --dry-run / -n To just know details
+  without args   You will be prompted to ask for delete (Press ctrl + c to exit the terminal , only if you don't want to delete)
 
 Options:
   -h, --help     Print help

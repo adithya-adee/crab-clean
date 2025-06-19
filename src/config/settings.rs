@@ -5,24 +5,63 @@ use std::path::PathBuf;
 #[command(
     name = "declutter",
     version = "1.0",
-    about = "Declutter your file system"
+    about = "Declutter your file system",
+    long_about = "
+Declutter your file system by finding and managing duplicate and unused files.
+
+USAGE:
+    declutter <COMMAND> [OPTIONS] [PATH]
+
+COMMANDS:
+    duplicate    Find and manage duplicate files
+    unused       Find and manage unused files
+    help         Print this message or the help of the given subcommand(s)
+
+FLAGS:
+    --dry-run, -n   Preview what would be deleted without actually deleting files.
+                    If omitted, you will be interactively prompted for each deletion.
+                    (Press Ctrl+C to exit at any prompt.)
+
+OPTIONS:
+    -a, --age <AGE>   (for 'unused' command) Age in days for a file to be considered unused (default: 30)
+    -h, --help        Print help information
+    -V, --version     Print version information
+
+EXAMPLES:
+    declutter duplicate --dry-run
+    declutter duplicate /path/to/dir --dry-run
+    declutter duplicate ~/Downloads
+    declutter unused ~/Documents --age 60 --dry-run
+    declutter unused --age 90
+
+NOTES:
+    - If you omit the --dry-run flag, the tool will prompt you for each file before deletion.
+    - Use Ctrl+C at any prompt to safely exit without deleting files.
+    - For feature requests (like grouping files) or issues, please contact: your.email@example.com
+"
 )]
 #[command(propagate_version = true)]
 pub struct Cli {
-    // TODO : Add optional for Commands
     #[command(subcommand)]
     pub command: Commands,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    #[command(
+        about = "Find and manage duplicate files",
+        long_about = "Finds duplicate files in the specified directory using SHA-256 content hashing. Supports dry run and interactive deletion."
+    )]
     Duplicate {
         #[arg(default_value = ".")]
         path: PathBuf,
-
         #[arg(short = 'n', long)]
         dry_run: bool,
     },
+    #[command(
+        about = "Find and manage unused files",
+        long_about = "Finds files that have not been accessed for a specified number of days. Supports dry run and interactive deletion."
+    )]
     Unused {
         #[arg(default_value = ".")]
         path: PathBuf,
