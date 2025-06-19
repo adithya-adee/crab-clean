@@ -33,4 +33,4 @@ impl From<io::Error> for CrabcleanError {
     }
 }
 
-pub type DeclutterResult<T> = Result<T, CrabcleanError>;
+pub type CrabCleanResult<T> = Result<T, CrabcleanError>;

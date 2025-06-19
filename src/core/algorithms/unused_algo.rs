@@ -1,4 +1,4 @@
-use crate::error::{CrabcleanError, DeclutterResult};
+use crate::error::{CrabCleanResult, CrabcleanError};
 use crate::utils::progress::create_progress_bar;
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -7,7 +7,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
-pub fn get_unused(files: &Vec<PathBuf>, age: &u32) -> DeclutterResult<Vec<PathBuf>> {
+pub fn get_unused(files: &Vec<PathBuf>, age: &u32) -> CrabCleanResult<Vec<PathBuf>> {
     if *age == 0 {
         return Err(CrabcleanError::InvalidArgument(
             "Age cannot be zero. Please provide a positive age in days.".to_string(),

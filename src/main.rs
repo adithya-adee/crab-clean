@@ -6,5 +6,5 @@ fn main() {
         eprintln!("ERROR : {e}");
         std::process::exit(1);
     }
-    println!("Declutter CLI finished successfully!!");
+    println!("Crab Clean CLI finished successfully!!");
 }

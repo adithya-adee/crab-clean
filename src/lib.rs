@@ -1,4 +1,4 @@
-//! # Declutter CLI
+//! # crabclean CLI
 //!
 //! A command-line tool for cleaning up duplicate and unused files.
 //!
@@ -12,7 +12,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use clean_crab::core::algorithms::duplicate_algo::get_duplicates;
+//! use crab_clean::core::algorithms::duplicate_algo::get_duplicates;
 //! use std::path::PathBuf;
 //!
 //! let files = vec![PathBuf::from("file1.txt"), PathBuf::from("file2.txt")];

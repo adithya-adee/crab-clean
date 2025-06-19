@@ -1,8 +1,8 @@
-# Declutter Product Docs
+# crabclean Product Docs
 
 ## 1. Elevator Pitch
 
-Declutter CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
+crabclean CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
 
 ---
 
@@ -40,11 +40,11 @@ Declutter CLI is a Rust‑powered command‑line tool that helps developers and 
     - **CLI flags** for quick overrides (`--path`, `--age`, `--mode`, `--dry-run`).
     - **Subcommand structure** for clear separation of concerns:
       ```
-      declutter duplicate [path] [options]
-      declutter unused [path] --age [days] [options]
-      declutter group [path] --mode [modes] [options]
+      crabclean duplicate [path] [options]
+      crabclean unused [path] --age [days] [options]
+      crabclean group [path] --mode [modes] [options]
       ```
-    - **Optional config file** (`~/.declutter.toml`) for default profiles:
+    - **Optional config file** (`~/.crabclean.toml`) for default profiles:
       ```toml
       [defaults]
       age = 30
@@ -68,11 +68,11 @@ Declutter CLI is a Rust‑powered command‑line tool that helps developers and 
 
 ## 4. User Stories
 
-- **As a developer**, I want to run `declutter unused --path ./project --age 60 --dry-run` to preview unused files older than 60 days so I can review before cleanup.
-- **As a digital user**, I want to run `declutter group --mode extension --path ./Pictures` to group all my `.jpg` and `.png` images into visual clusters so I can decide which albums to keep.
-- **As a power user**, I want to configure my default modes in `~/.declutter.toml` so I don't have to type flags every time.
+- **As a developer**, I want to run `crabclean unused --path ./project --age 60 --dry-run` to preview unused files older than 60 days so I can review before cleanup.
+- **As a digital user**, I want to run `crabclean group --mode extension --path ./Pictures` to group all my `.jpg` and `.png` images into visual clusters so I can decide which albums to keep.
+- **As a power user**, I want to configure my default modes in `~/.crabclean.toml` so I don't have to type flags every time.
 - **As a cautious user**, I want a clear tree view and explicit confirmations so I never accidentally delete important files.
-- **As a regular user**, I want to run `declutter duplicate` in my current directory to find and safely remove duplicate files.
+- **As a regular user**, I want to run `crabclean duplicate` in my current directory to find and safely remove duplicate files.
 
 ---
 
@@ -164,7 +164,7 @@ Declutter CLI is a Rust‑powered command‑line tool that helps developers and 
 ## 8. Future Enhancements (Out of Scope for MVP)
 
 - **macOS and Windows Support**: Extend platform compatibility beyond Linux.
-- **Undo Functionality**: Implement a command to revert the last set of changes made by `declutter`.
+- **Undo Functionality**: Implement a command to revert the last set of changes made by `crabclean`.
 - **"Watch" Mode**: Continuously monitor a directory for new files and suggest actions in the background.
 - **Exclusion Rules**: Allow users to define specific files or directories to ignore during scans.
 - **Integration with System Clipboard**: Ability to copy file paths or names from the output directly to the clipboard.

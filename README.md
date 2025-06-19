@@ -1,10 +1,10 @@
-# Declutter CLI
+# crabclean CLI
 
-[![Crates.io](https://img.shields.io/crates/v/declutter.svg)](https://crates.io/crates/declutter)
+[![Crates.io](https://img.shields.io/crates/v/crabclean.svg)](https://crates.io/crates/crabclean)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
-[![Build Status](https://github.com/your-username/declutter/workflows/CI/badge.svg)](https://github.com/your-username/declutter/actions)
+[![Build Status](https://github.com/your-username/crabclean/workflows/CI/badge.svg)](https://github.com/your-username/crabclean/actions)
 
-> Declutter CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
+> crabclean CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
 
 ## Features
 
@@ -21,20 +21,20 @@
 ### From crates.io (Recommended)
 
 ```bash
-cargo install declutter
+cargo install crabclean
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/your-username/declutter.git
-cd declutter
+git clone https://github.com/your-username/crabclean.git
+cd crabclean
 cargo install --path .
 ```
 
 ### Pre-compiled Binaries
 
-Download pre-compiled binaries from the [Releases page](https://github.com/your-username/declutter/releases).
+Download pre-compiled binaries from the [Releases page](https://github.com/your-username/crabclean/releases).
 
 ## Quick Start
 
@@ -42,34 +42,34 @@ Download pre-compiled binaries from the [Releases page](https://github.com/your-
 
 ```bash
 # Dry run (preview only)
-declutter duplicate /path/to/directory --dry-run
+crabclean duplicate /path/to/directory --dry-run
 
 # Interactive deletion
-declutter duplicate /path/to/directory
+crabclean duplicate /path/to/directory
 
 # Current directory
-declutter duplicate .
+crabclean duplicate .
 ```
 
 ### Find Unused Files
 
 ```bash
 # Find files unused for 30 days (default)
-declutter unused /path/to/directory --dry-run
+crabclean unused /path/to/directory --dry-run
 
 # Find files unused for 60 days
-declutter unused /path/to/directory --age 60
+crabclean unused /path/to/directory --age 60
 
 # Interactive deletion
-declutter unused /path/to/directory --age 30
+crabclean unused /path/to/directory --age 30
 ```
 
 ## Usage
 
 ```text
-Declutter your file system by finding and managing duplicate and unused files
+crabclean your file system by finding and managing duplicate and unused files
 
-Usage: declutter <COMMAND> <SOURCE_DIRECTORY> <flag>
+Usage: crabclean <COMMAND> <SOURCE_DIRECTORY> <flag>
 
 Commands:
   duplicate  Find and manage duplicate files
@@ -90,7 +90,7 @@ Options:
 ```
 Find and manage duplicate files
 
-Usage: declutter duplicate [OPTIONS] [PATH]
+Usage: crabclean duplicate [OPTIONS] [PATH]
 
 Arguments:
   [PATH]  Path to the directory to scan [default: .]
@@ -105,7 +105,7 @@ Options:
 ```
 Find and manage unused files
 
-Usage: declutter unused [OPTIONS] [PATH]
+Usage: crabclean unused [OPTIONS] [PATH]
 
 Arguments:
   [PATH]  Path to the directory to scan [default: .]
@@ -120,13 +120,13 @@ Options:
 
 ```bash
 # Find duplicates in Downloads folder (dry run)
-declutter duplicate ~/Downloads --dry-run
+crabclean duplicate ~/Downloads --dry-run
 
 # Clean up unused files older than 90 days in project directory
-declutter unused ~/projects --age 90
+crabclean unused ~/projects --age 90
 
 # Interactive duplicate cleanup in current directory
-declutter duplicate .
+crabclean duplicate .
 ```
 
 ## Safety Features
