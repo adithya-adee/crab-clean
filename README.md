@@ -1,4 +1,5 @@
-# crabclean CLI
+![Crab Clean Logo](crab_clean_logo.png)
+# Crab Clean CLI
 
 [![Crates.io](https://img.shields.io/badge/crates_io-blue.svg)]([https://crates.io/crates/crab-clean](https://crates.io/crates/crab-clean))
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
@@ -20,20 +21,20 @@
 ### From crates.io (Recommended)
 
 ```bash
-cargo install crabclean
+cargo install crab-clean
 ```
 
 ### From Source
 
 ```bash
-git clone https://github.com/adithya-adee/crabclean.git
-cd crabclean
+git clone https://github.com/adithya-adee/crab-clean.git
+cd crab-clean
 cargo install --path .
 ```
 
 ### Pre-compiled Binaries
 
-Download pre-compiled binaries from the [Releases page](https://github.com/adithya-adee/crabclean/releases).
+Download pre-compiled binaries from the [Releases page](https://github.com/adithya-adee/crab-clean/releases).
 
 ## Quick Start
 
@@ -68,7 +69,7 @@ crabclean unused /path/to/directory --age 30
 ## Usage
 
 ```text
-crabclean your file system by finding and managing duplicate and unused files
+Tidy your file system by finding and managing duplicate and unused files
 
 Usage: crabclean <COMMAND> <SOURCE_DIRECTORY> <flag>
 
