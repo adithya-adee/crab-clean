@@ -44,6 +44,21 @@ pub fn dispatch_command(cli: &Cli) -> Result<(), CrabcleanError> {
                 ));
             }
         }
+        Commands::Group {
+            path,
+            group_by,
+            dry_run,
+        } => {
+            if *dry_run {
+                println!("Group by dry run at {:?}, group_by {group_by}", path);
+            } else if !*dry_run {
+                println!("Group by run at {:?}, group_by {group_by}", path);
+            } else {
+                return Err(CrabcleanError::Config(
+                    "Unused command not yet implemented".to_string(),
+                ));
+            }
+        }
     }
     Ok(())
 }

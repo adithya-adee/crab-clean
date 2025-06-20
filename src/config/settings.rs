@@ -70,6 +70,14 @@ pub enum Commands {
         #[arg(short = 'n', long)]
         dry_run: bool,
     },
+    Group {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(short = 'g', long, default_value = "all")]
+        group_by: String,
+        #[arg(short = 'n', long)]
+        dry_run: bool,
+    },
 }
 
 pub fn parse_arguments() -> Cli {

@@ -11,7 +11,7 @@ repository = "https://github.com/adithya-adee/crab-clean"
 license = "MIT"
 keywords = ["cli", "filesystem", "duplicate-files", "cleanup", "organizer"]
 categories = ["command-line-utilities", "filesystem"]
-exclude = ["tests/*", ".github/*", "*.md", "*.excalidraw"]
+exclude = ["tests/*", ".github/*", "*.md", "*.excalidraw", "*.png"]
 
 [[bin]]
 name = "crabclean"
