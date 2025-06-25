@@ -1,9 +1,11 @@
 pub mod duplicate;
+pub mod group;
 pub mod unused;
 
 use crate::{
     cli::commands::{
         duplicate::{duplicate_with_dry_run, duplicate_with_run},
+        group::{group_by_dry_run, group_by_run},
         unused::{unused_with_dry_run, unused_with_run},
     },
     config::settings::{Cli, Commands},
@@ -51,8 +53,10 @@ pub fn dispatch_command(cli: &Cli) -> Result<(), CrabcleanError> {
         } => {
             if *dry_run {
                 println!("Group by dry run at {:?}, group_by {group_by}", path);
+                group_by_dry_run(path, group_by)?;
             } else if !*dry_run {
                 println!("Group by run at {:?}, group_by {group_by}", path);
+                group_by_run(path, group_by)?;
             } else {
                 return Err(CrabcleanError::Config(
                     "Unused command not yet implemented".to_string(),

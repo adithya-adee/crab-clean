@@ -73,7 +73,7 @@ pub enum Commands {
     Group {
         #[arg(default_value = ".")]
         path: PathBuf,
-        #[arg(short = 'g', long, default_value = "all")]
+        #[arg(short = 'g', long, default_value = "extension")]
         group_by: String,
         #[arg(short = 'n', long)]
         dry_run: bool,

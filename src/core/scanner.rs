@@ -21,6 +21,17 @@ pub fn get_file_tree(base_dir_path: &PathBuf) -> Result<Vec<PathBuf>, CrabcleanE
     let file_list: Vec<PathBuf> = WalkDir::new(base_dir_path)
         .max_depth(3)
         .into_iter()
+        .filter_entry(|e| {
+            // Skip entries if any component of the path starts with '.'
+            !e.path().components().any(|comp| {
+                use std::path::Component;
+                if let Component::Normal(os_str) = comp {
+                    os_str.to_str().map_or(false, |s| s.starts_with('.'))
+                } else {
+                    false
+                }
+            })
+        })
         .filter_map(|e| e.ok().map(|entry| entry.into_path()))
         .collect();
 
