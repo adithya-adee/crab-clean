@@ -45,18 +45,22 @@ Just launch it — there are no subcommands or flags:
 crabclean
 ```
 
-You land on the **Home** screen. Pick a mode, set the directory and options, then press **Enter** to scan.
+You land on the **Home** screen, which has three panels — **Mode**, **Browse**, and **Options**. The focused panel is highlighted with a bold accent border so you always know where you are. `Tab` cycles between panels. There's no path to type: navigate to the folder you want with the built-in directory browser, then press `s` to scan it.
 
 ### Key bindings
 
-**Home**
+**Home** (`Tab` switches panel)
 
 | Key | Action |
 | --- | --- |
-| `↑` / `↓` | Choose scan mode (Duplicates / Unused / Old / All files) |
-| `Tab` | Move between Path / Age / Max-depth / toggles |
-| `Space` | Toggle a checkbox (include hidden, follow symlinks) |
-| `Enter` | Start the scan |
+| `Tab` / `Shift-Tab` | Switch panel (Mode → Browse → Options) |
+| `↑` / `↓` | Move within the focused panel |
+| `Enter` / `→` | (Browse) open the highlighted folder |
+| `←` / `Backspace` | (Browse) go up one folder |
+| `~` | (Browse) jump to your home directory |
+| `←` / `→` / digits | (Options) adjust age / max-depth |
+| `Space` | (Options) toggle include-hidden / follow-symlinks |
+| `s` | Scan the current folder |
 | `e` | Empty the system trash |
 | `F1` | Help (works anywhere) |
 | `Esc` | Quit |

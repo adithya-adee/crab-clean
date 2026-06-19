@@ -9,12 +9,14 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{
-    Block, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table, Wrap,
+    Block, BorderType, Borders, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table, Wrap,
 };
 
 use crate::core::delete::DeleteMode;
 use crate::core::model::ScanMode;
-use crate::tui::app::{App, FILTER_LABELS, HomeFocus, Screen};
+use crate::tui::app::{
+    App, FILTER_LABELS, HomePanel, OPTION_AGE, OPTION_DEPTH, OPTION_HIDDEN, OPTION_SYMLINKS, Screen,
+};
 
 pub fn render(f: &mut Frame, app: &mut App) {
     match app.screen {
@@ -79,36 +81,96 @@ fn hints_line(app: &App, hints: &str) -> Paragraph<'static> {
     ))
 }
 
+/// A bordered block whose appearance reflects focus: the active panel gets a
+/// thick, accent-colored, bold border + title; inactive panels are dim and
+/// rounded. This is the primary "where am I?" cue across the app.
+fn panel_block(app: &App, title: &str, focused: bool) -> Block<'static> {
+    let (border_style, border_type, title_style) = if focused {
+        (
+            Style::default().fg(app.theme.accent),
+            BorderType::Thick,
+            Style::default()
+                .fg(app.theme.accent)
+                .add_modifier(Modifier::BOLD),
+        )
+    } else {
+        (
+            Style::default().fg(app.theme.border),
+            BorderType::Rounded,
+            Style::default().fg(app.theme.dim),
+        )
+    };
+    let marker = if focused { "● " } else { "  " };
+    Block::default()
+        .borders(Borders::ALL)
+        .border_type(border_type)
+        .border_style(border_style)
+        .title(Span::styled(format!("{marker}{title} "), title_style))
+}
+
 // ----------------------------------------------------------------------- home
 
-fn draw_home(f: &mut Frame, app: &App) {
-    let rows = outer(f.area());
+fn draw_home(f: &mut Frame, app: &mut App) {
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // title
+            Constraint::Length(1), // current path
+            Constraint::Min(0),    // body (panels)
+            Constraint::Length(1), // status
+            Constraint::Length(1), // hints
+        ])
+        .split(f.area());
+
     f.render_widget(title_bar(app, "interactive file cleaner"), rows[0]);
+
+    // Current-directory breadcrumb.
+    let path = Paragraph::new(Line::from(vec![
+        Span::styled("  📂 ", Style::default().fg(app.theme.accent)),
+        Span::styled(
+            app.browse_dir.display().to_string(),
+            Style::default()
+                .fg(app.theme.accent)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]));
+    f.render_widget(path, rows[1]);
 
     let body = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
-        .split(rows[1]);
+        .constraints([Constraint::Percentage(38), Constraint::Percentage(62)])
+        .split(rows[2]);
 
-    // Left: mode picker + description.
+    // Left column: mode picker (top) + options (bottom).
     let left = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(6), Constraint::Length(4)])
+        .constraints([Constraint::Length(6), Constraint::Min(0)])
         .split(body[0]);
 
+    draw_mode_panel(f, app, left[0]);
+    draw_options_panel(f, app, left[1]);
+    draw_browser_panel(f, app, body[1]);
+
+    f.render_widget(status_line(app), rows[3]);
+    f.render_widget(
+        hints_line(
+            app,
+            "Tab panel · ↑/↓ select · Enter open/scan · ←/⌫ up dir · s scan · e empty-trash · F1 help",
+        ),
+        rows[4],
+    );
+}
+
+fn draw_mode_panel(f: &mut Frame, app: &App, area: Rect) {
+    let focused = app.home_panel == HomePanel::Mode;
     let items: Vec<ListItem> = ScanMode::ALL
         .iter()
         .map(|m| ListItem::new(m.title()))
         .collect();
-    let mut list_state = ListState::default();
-    list_state.select(Some(app.mode_index));
+    let mut state = ListState::default();
+    state.select(Some(app.mode_index));
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Mode ")
-                .border_style(Style::default().fg(app.theme.border)),
-        )
+        .block(panel_block(app, "Mode", focused))
         .highlight_style(
             Style::default()
                 .bg(app.theme.highlight_bg)
@@ -116,120 +178,145 @@ fn draw_home(f: &mut Frame, app: &App) {
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▶ ");
-    f.render_stateful_widget(list, left[0], &mut list_state);
-
-    let desc = Paragraph::new(app.current_mode().description())
-        .wrap(Wrap { trim: true })
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" About ")
-                .border_style(Style::default().fg(app.theme.border)),
-        );
-    f.render_widget(desc, left[1]);
-
-    // Right: options form.
-    let mode = app.current_mode();
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(field_line(
-        app,
-        "Path",
-        &app.path_input,
-        app.home_focus == HomeFocus::Path,
-    ));
-    let age_val = if mode.uses_age() {
-        format!("{} days", app.age_input)
-    } else {
-        "(not used for this mode)".to_string()
-    };
-    lines.push(field_line(
-        app,
-        "Age",
-        &age_val,
-        app.home_focus == HomeFocus::Age,
-    ));
-    let depth_val = if app.depth_input.trim().is_empty() {
-        "(unlimited)".to_string()
-    } else {
-        app.depth_input.clone()
-    };
-    lines.push(field_line(
-        app,
-        "Max depth",
-        &depth_val,
-        app.home_focus == HomeFocus::Depth,
-    ));
-    lines.push(toggle_line(
-        app,
-        "Include hidden",
-        app.include_hidden,
-        app.home_focus == HomeFocus::Hidden,
-    ));
-    lines.push(toggle_line(
-        app,
-        "Follow symlinks",
-        app.follow_symlinks,
-        app.home_focus == HomeFocus::Symlinks,
-    ));
-
-    let form = Paragraph::new(Text::from(lines)).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Options ")
-            .border_style(Style::default().fg(app.theme.border)),
-    );
-    f.render_widget(form, body[1]);
-
-    f.render_widget(status_line(app), rows[2]);
-    f.render_widget(
-        hints_line(
-            app,
-            "↑/↓ mode · Tab field · Space toggle · Enter scan · e empty-trash · F1 help · Esc quit",
-        ),
-        rows[3],
-    );
+    f.render_stateful_widget(list, area, &mut state);
 }
 
-fn field_line(app: &App, label: &str, value: &str, focused: bool) -> Line<'static> {
-    let (marker, label_style) = if focused {
-        (
-            "▶ ",
-            Style::default()
-                .fg(app.theme.accent)
-                .add_modifier(Modifier::BOLD),
-        )
+fn draw_options_panel(f: &mut Frame, app: &App, area: Rect) {
+    let focused = app.home_panel == HomePanel::Options;
+    let uses_age = app.current_mode().uses_age();
+
+    let age_val = if uses_age {
+        format!("{} days  (←/→ or type)", app.age_input)
     } else {
-        ("  ", Style::default().fg(app.theme.dim))
+        "(not used by this mode)".to_string()
     };
-    let value_style = if focused {
-        Style::default().add_modifier(Modifier::UNDERLINED)
+    let depth_val = if app.depth_input.trim().is_empty() {
+        "unlimited  (←/→ or type)".to_string()
+    } else {
+        format!("{}  (←/→ or type)", app.depth_input)
+    };
+
+    let lines = vec![
+        option_line(
+            app,
+            "Age",
+            &age_val,
+            focused && app.option_index == OPTION_AGE,
+            false,
+            false,
+        ),
+        option_line(
+            app,
+            "Max depth",
+            &depth_val,
+            focused && app.option_index == OPTION_DEPTH,
+            false,
+            false,
+        ),
+        option_line(
+            app,
+            "Include hidden",
+            "",
+            focused && app.option_index == OPTION_HIDDEN,
+            true,
+            app.include_hidden,
+        ),
+        option_line(
+            app,
+            "Follow symlinks",
+            "",
+            focused && app.option_index == OPTION_SYMLINKS,
+            true,
+            app.follow_symlinks,
+        ),
+        Line::from(""),
+        Line::from(Span::styled(
+            "  About: ",
+            Style::default().fg(app.theme.dim),
+        )),
+        Line::from(Span::styled(
+            format!("  {}", app.current_mode().description()),
+            Style::default().fg(app.theme.dim),
+        )),
+    ];
+
+    let form = Paragraph::new(Text::from(lines))
+        .wrap(Wrap { trim: true })
+        .block(panel_block(app, "Options", focused));
+    f.render_widget(form, area);
+}
+
+fn option_line(
+    app: &App,
+    label: &str,
+    value: &str,
+    active: bool,
+    is_toggle: bool,
+    on: bool,
+) -> Line<'static> {
+    let marker = if active { "▶ " } else { "  " };
+    let label_style = if active {
+        Style::default()
+            .fg(app.theme.accent)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
-    Line::from(vec![
+    let mut spans = vec![
         Span::styled(marker.to_string(), label_style),
         Span::styled(format!("{label:<16}"), label_style),
-        Span::styled(value.to_string(), value_style),
-    ])
+    ];
+    if is_toggle {
+        let check = if on { "[x]" } else { "[ ]" };
+        spans.push(Span::styled(
+            check.to_string(),
+            Style::default().fg(app.theme.selected),
+        ));
+    } else {
+        let value_style = if active {
+            Style::default().add_modifier(Modifier::UNDERLINED)
+        } else {
+            Style::default().fg(app.theme.dim)
+        };
+        spans.push(Span::styled(value.to_string(), value_style));
+    }
+    Line::from(spans)
 }
 
-fn toggle_line(app: &App, label: &str, on: bool, focused: bool) -> Line<'static> {
-    let check = if on { "[x]" } else { "[ ]" };
-    let (marker, label_style) = if focused {
-        (
-            "▶ ",
+fn draw_browser_panel(f: &mut Frame, app: &mut App, area: Rect) {
+    let focused = app.home_panel == HomePanel::Browser;
+    let items: Vec<ListItem> = app
+        .browse_items
+        .iter()
+        .map(|item| {
+            let (icon, style) = if item.is_parent {
+                ("⬆ ", Style::default().fg(app.theme.dim))
+            } else {
+                ("📁 ", Style::default().fg(app.theme.accent))
+            };
+            ListItem::new(Line::from(vec![
+                Span::styled(icon, style),
+                Span::raw(item.label.clone()),
+            ]))
+        })
+        .collect();
+
+    let title = if items.is_empty() {
+        "Browse  (no sub-folders — press 's' to scan here)".to_string()
+    } else {
+        "Browse  (Enter to open, ← to go up)".to_string()
+    };
+
+    let list = List::new(items)
+        .block(panel_block(app, &title, focused))
+        .highlight_style(
             Style::default()
-                .fg(app.theme.accent)
+                .bg(app.theme.highlight_bg)
+                .fg(app.theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
         )
-    } else {
-        ("  ", Style::default().fg(app.theme.dim))
-    };
-    Line::from(vec![
-        Span::styled(marker.to_string(), label_style),
-        Span::styled(format!("{check} "), Style::default().fg(app.theme.selected)),
-        Span::styled(label.to_string(), label_style),
-    ])
+        .highlight_symbol("▶ ");
+    f.render_stateful_widget(list, area, &mut app.browse_state);
 }
 
 // -------------------------------------------------------------------- scanning
@@ -587,12 +674,12 @@ fn draw_help(f: &mut Frame, app: &App) {
                 .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from("Home"),
-        Line::from("  ↑/↓        choose scan mode"),
-        Line::from("  Tab        move between Path / Age / Depth / toggles"),
-        Line::from("  Space      toggle a checkbox (hidden, symlinks)"),
-        Line::from("  Enter      start scan"),
-        Line::from("  e          empty system trash"),
+        Line::from("Home  (Tab switches panel — the focused panel is highlighted)"),
+        Line::from("  Mode panel     ↑/↓ choose what to clean"),
+        Line::from("  Browse panel   ↑/↓ move · Enter/→ open folder · ←/⌫ go up · ~ home"),
+        Line::from("  Options panel  ↑/↓ pick row · ←/→ adjust · Space toggle · digits type"),
+        Line::from("  s              scan the current folder (Enter also scans off-browser)"),
+        Line::from("  e              empty system trash"),
         Line::from(""),
         Line::from("Review"),
         Line::from("  ↑/↓ j/k    move cursor      Space  mark/unmark file"),

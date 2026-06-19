@@ -1,13 +1,13 @@
 //! Application state and the update logic that reacts to input and scan events.
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::widgets::TableState;
+use ratatui::widgets::{ListState, TableState};
 
 use crate::config::Config;
 use crate::core::algorithms::{find_by_age, find_duplicates};
@@ -27,32 +27,40 @@ pub enum Screen {
     Summary,
 }
 
-/// Which control on the home screen receives text/toggle input.
+/// Which panel on the home screen currently has focus. The focused panel is
+/// drawn with a bold accent border so the user always knows where they are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HomeFocus {
-    Path,
-    Age,
-    Depth,
-    Hidden,
-    Symlinks,
+pub enum HomePanel {
+    Mode,
+    Browser,
+    Options,
 }
 
-impl HomeFocus {
-    const ORDER: [HomeFocus; 5] = [
-        HomeFocus::Path,
-        HomeFocus::Age,
-        HomeFocus::Depth,
-        HomeFocus::Hidden,
-        HomeFocus::Symlinks,
-    ];
+impl HomePanel {
+    const ORDER: [HomePanel; 3] = [HomePanel::Mode, HomePanel::Browser, HomePanel::Options];
     fn next(self) -> Self {
-        let i = Self::ORDER.iter().position(|f| *f == self).unwrap_or(0);
+        let i = Self::ORDER.iter().position(|p| *p == self).unwrap_or(0);
         Self::ORDER[(i + 1) % Self::ORDER.len()]
     }
     fn prev(self) -> Self {
-        let i = Self::ORDER.iter().position(|f| *f == self).unwrap_or(0);
+        let i = Self::ORDER.iter().position(|p| *p == self).unwrap_or(0);
         Self::ORDER[(i + Self::ORDER.len() - 1) % Self::ORDER.len()]
     }
+}
+
+/// Rows in the options panel, navigated with up/down.
+pub const OPTION_COUNT: usize = 4;
+pub const OPTION_AGE: usize = 0;
+pub const OPTION_DEPTH: usize = 1;
+pub const OPTION_HIDDEN: usize = 2;
+pub const OPTION_SYMLINKS: usize = 3;
+
+/// One entry in the directory browser: a display label and where it leads.
+#[derive(Debug, Clone)]
+pub struct BrowseItem {
+    pub label: String,
+    pub path: PathBuf,
+    pub is_parent: bool,
 }
 
 /// Sort key for the review table.
@@ -125,12 +133,17 @@ pub struct App {
 
     // --- Home screen ---
     pub mode_index: usize,
-    pub home_focus: HomeFocus,
-    pub path_input: String,
+    pub home_panel: HomePanel,
+    pub option_index: usize,
     pub age_input: String,
     pub depth_input: String,
     pub include_hidden: bool,
     pub follow_symlinks: bool,
+
+    // --- Directory browser ---
+    pub browse_dir: PathBuf,
+    pub browse_items: Vec<BrowseItem>,
+    pub browse_state: ListState,
 
     // --- Scanning ---
     scan_rx: Option<Receiver<ScanMsg>>,
@@ -162,21 +175,25 @@ impl App {
         let theme = Theme::from_name(config.theme);
         let depth_input = config.max_depth.map(|d| d.to_string()).unwrap_or_default();
         let trash_count = delete::trash_item_count().unwrap_or(0);
-        App {
+        let browse_dir = resolve_start_dir(&config.default_path);
+        let mut app = App {
             running: true,
             theme,
             screen: Screen::Home,
-            status: "Welcome to crab-clean. Pick a mode, set a path, press Enter to scan.".into(),
+            status: "Pick a mode (left), browse to a folder (Tab), then press 's' to scan.".into(),
             show_help: false,
             confirm_empty_trash: false,
             trash_count,
             mode_index: 0,
-            home_focus: HomeFocus::Path,
-            path_input: config.default_path.clone(),
+            home_panel: HomePanel::Mode,
+            option_index: 0,
             age_input: config.default_age_days.to_string(),
             depth_input,
             include_hidden: config.include_hidden,
             follow_symlinks: config.follow_symlinks,
+            browse_dir,
+            browse_items: Vec::new(),
+            browse_state: ListState::default(),
             scan_rx: None,
             scan_stage: String::new(),
             scan_count: 0,
@@ -194,7 +211,9 @@ impl App {
             delete_mode: config.delete_mode,
             report: None,
             config,
-        }
+        };
+        app.refresh_browser();
+        app
     }
 
     pub fn current_mode(&self) -> ScanMode {
@@ -259,63 +278,214 @@ impl App {
     }
 
     fn on_key_home(&mut self, key: KeyEvent) {
+        // Global home commands first (no free-text fields exist on this screen,
+        // so single-letter commands never conflict with input).
         match key.code {
-            KeyCode::Esc => self.running = false,
-            KeyCode::Enter => self.start_scan(),
-            KeyCode::Tab => self.home_focus = self.home_focus.next(),
-            KeyCode::BackTab => self.home_focus = self.home_focus.prev(),
-            KeyCode::Up => {
-                self.mode_index = (self.mode_index + ScanMode::ALL.len() - 1) % ScanMode::ALL.len()
+            KeyCode::Esc => {
+                self.running = false;
+                return;
             }
-            KeyCode::Down => self.mode_index = (self.mode_index + 1) % ScanMode::ALL.len(),
-            KeyCode::Backspace => match self.home_focus {
-                HomeFocus::Path => {
-                    self.path_input.pop();
+            KeyCode::Tab => {
+                self.home_panel = self.home_panel.next();
+                return;
+            }
+            KeyCode::BackTab => {
+                self.home_panel = self.home_panel.prev();
+                return;
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                self.start_scan();
+                return;
+            }
+            KeyCode::Char('e') | KeyCode::Char('E') => {
+                self.open_empty_trash_confirm();
+                return;
+            }
+            KeyCode::Char('?') => {
+                self.show_help = true;
+                return;
+            }
+            KeyCode::Char('~') => {
+                if let Some(home) = dirs::home_dir() {
+                    self.browse_dir = home;
+                    self.refresh_browser();
+                    self.browse_state.select(Some(0));
+                    self.home_panel = HomePanel::Browser;
                 }
-                HomeFocus::Age => {
+                return;
+            }
+            KeyCode::Enter => {
+                // In the browser, Enter opens the highlighted directory;
+                // elsewhere it starts the scan.
+                if self.home_panel == HomePanel::Browser {
+                    self.browser_open();
+                } else {
+                    self.start_scan();
+                }
+                return;
+            }
+            _ => {}
+        }
+
+        match self.home_panel {
+            HomePanel::Mode => match key.code {
+                KeyCode::Up => {
+                    self.mode_index =
+                        (self.mode_index + ScanMode::ALL.len() - 1) % ScanMode::ALL.len();
+                }
+                KeyCode::Down => {
+                    self.mode_index = (self.mode_index + 1) % ScanMode::ALL.len();
+                }
+                _ => {}
+            },
+            HomePanel::Browser => match key.code {
+                KeyCode::Up => self.browse_move(-1),
+                KeyCode::Down => self.browse_move(1),
+                KeyCode::PageUp => self.browse_move(-10),
+                KeyCode::PageDown => self.browse_move(10),
+                KeyCode::Right => self.browser_open(),
+                KeyCode::Left | KeyCode::Backspace => self.browser_up(),
+                _ => {}
+            },
+            HomePanel::Options => self.on_key_options(key),
+        }
+    }
+
+    fn on_key_options(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Up => {
+                self.option_index = (self.option_index + OPTION_COUNT - 1) % OPTION_COUNT;
+            }
+            KeyCode::Down => {
+                self.option_index = (self.option_index + 1) % OPTION_COUNT;
+            }
+            KeyCode::Left => self.adjust_option(-1),
+            KeyCode::Right => self.adjust_option(1),
+            KeyCode::Char(' ') => match self.option_index {
+                OPTION_HIDDEN => self.toggle_hidden(),
+                OPTION_SYMLINKS => self.follow_symlinks = !self.follow_symlinks,
+                _ => {}
+            },
+            KeyCode::Char(c) if c.is_ascii_digit() => match self.option_index {
+                OPTION_AGE if self.age_input.len() < 5 => self.age_input.push(c),
+                OPTION_DEPTH if self.depth_input.len() < 3 => self.depth_input.push(c),
+                _ => {}
+            },
+            KeyCode::Backspace => match self.option_index {
+                OPTION_AGE => {
                     self.age_input.pop();
                 }
-                HomeFocus::Depth => {
+                OPTION_DEPTH => {
                     self.depth_input.pop();
                 }
                 _ => {}
             },
-            KeyCode::Char(c) => self.home_char(c),
             _ => {}
         }
     }
 
-    fn home_char(&mut self, c: char) {
-        match self.home_focus {
-            HomeFocus::Path => self.path_input.push(c),
-            HomeFocus::Age => {
-                if c.is_ascii_digit() {
-                    self.age_input.push(c);
-                }
+    fn adjust_option(&mut self, delta: i64) {
+        match self.option_index {
+            OPTION_AGE => {
+                let cur = self.age_input.trim().parse::<i64>().unwrap_or(30);
+                let next = (cur + delta).clamp(1, 99_999);
+                self.age_input = next.to_string();
             }
-            HomeFocus::Depth => {
-                if c.is_ascii_digit() {
-                    self.depth_input.push(c);
-                }
+            OPTION_DEPTH => {
+                // Empty string = unlimited; stepping down from unlimited has no effect.
+                let cur = self.depth_input.trim().parse::<i64>().ok();
+                let next = match cur {
+                    Some(v) => (v + delta).max(0),
+                    None if delta < 0 => return,
+                    None => 1,
+                };
+                self.depth_input = next.to_string();
             }
-            HomeFocus::Hidden => {
-                if c == ' ' {
-                    self.include_hidden = !self.include_hidden;
-                }
-            }
-            HomeFocus::Symlinks => {
-                if c == ' ' {
-                    self.follow_symlinks = !self.follow_symlinks;
-                }
-            }
+            OPTION_HIDDEN => self.toggle_hidden(),
+            OPTION_SYMLINKS => self.follow_symlinks = !self.follow_symlinks,
+            _ => {}
         }
+    }
 
-        // Commands available regardless of focus that don't conflict with input.
-        if c == '?' && !matches!(self.home_focus, HomeFocus::Path) {
-            self.show_help = true;
+    fn toggle_hidden(&mut self) {
+        self.include_hidden = !self.include_hidden;
+        // Hidden directories should appear/disappear from the browser too.
+        self.refresh_browser();
+    }
+
+    // ------------------------------------------------------------- dir browser
+
+    /// Rebuild the browser listing for the current `browse_dir`.
+    pub fn refresh_browser(&mut self) {
+        let mut items = Vec::new();
+        if let Some(parent) = self.browse_dir.parent() {
+            items.push(BrowseItem {
+                label: "../".to_string(),
+                path: parent.to_path_buf(),
+                is_parent: true,
+            });
         }
-        if c == 'e' && !matches!(self.home_focus, HomeFocus::Path) {
-            self.open_empty_trash_confirm();
+        for dir in read_subdirs(&self.browse_dir, self.include_hidden) {
+            let name = dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("?")
+                .to_string();
+            items.push(BrowseItem {
+                label: format!("{name}/"),
+                path: dir,
+                is_parent: false,
+            });
+        }
+        let len = items.len();
+        self.browse_items = items;
+        let sel = self.browse_state.selected().unwrap_or(0);
+        self.browse_state.select(if len == 0 {
+            None
+        } else {
+            Some(sel.min(len - 1))
+        });
+    }
+
+    fn browse_move(&mut self, delta: i64) {
+        if self.browse_items.is_empty() {
+            return;
+        }
+        let cur = self.browse_state.selected().unwrap_or(0) as i64;
+        let last = (self.browse_items.len() - 1) as i64;
+        self.browse_state
+            .select(Some((cur + delta).clamp(0, last) as usize));
+    }
+
+    /// Descend into (or go up to) the highlighted directory.
+    fn browser_open(&mut self) {
+        let Some(sel) = self.browse_state.selected() else {
+            return;
+        };
+        let Some(item) = self.browse_items.get(sel).cloned() else {
+            return;
+        };
+        let previous = self.browse_dir.clone();
+        self.browse_dir = item.path;
+        self.refresh_browser();
+        // When going up, re-highlight the directory we came from.
+        if let Some(i) = self.browse_items.iter().position(|it| it.path == previous) {
+            self.browse_state.select(Some(i));
+        } else {
+            self.browse_state.select(Some(0));
+        }
+    }
+
+    fn browser_up(&mut self) {
+        if let Some(parent) = self.browse_dir.parent().map(Path::to_path_buf) {
+            let previous = self.browse_dir.clone();
+            self.browse_dir = parent;
+            self.refresh_browser();
+            if let Some(i) = self.browse_items.iter().position(|it| it.path == previous) {
+                self.browse_state.select(Some(i));
+            } else {
+                self.browse_state.select(Some(0));
+            }
         }
     }
 
@@ -411,7 +581,7 @@ impl App {
 
     fn start_scan(&mut self) {
         let mode = self.current_mode();
-        let root = expand_path(&self.path_input);
+        let root = self.browse_dir.clone();
         if !root.is_dir() {
             self.status = format!("Not a directory: {}", root.display());
             return;
@@ -756,6 +926,42 @@ fn expand_path(input: &str) -> PathBuf {
         return home.join(rest);
     }
     PathBuf::from(trimmed)
+}
+
+/// Resolve the initial browse directory to an absolute path, falling back to the
+/// current working directory and finally the filesystem root.
+fn resolve_start_dir(configured: &str) -> PathBuf {
+    let candidate = expand_path(configured);
+    std::fs::canonicalize(&candidate)
+        .or_else(|_| std::env::current_dir())
+        .unwrap_or_else(|_| PathBuf::from("/"))
+}
+
+/// List the sub-directories of `dir`, sorted by name, honoring the hidden flag.
+fn read_subdirs(dir: &Path, include_hidden: bool) -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = match std::fs::read_dir(dir) {
+        Ok(read) => read
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.is_dir())
+            .filter(|p| {
+                include_hidden
+                    || !p
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.starts_with('.'))
+                        .unwrap_or(false)
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    };
+    dirs.sort_by(|a, b| {
+        a.file_name()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .cmp(&b.file_name().unwrap_or_default().to_ascii_lowercase())
+    });
+    dirs
 }
 
 /// Format a `SystemTime` as `YYYY-MM-DD`.

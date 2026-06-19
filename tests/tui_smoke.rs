@@ -4,10 +4,12 @@
 
 use std::fs;
 use std::io::Write;
+use std::thread::sleep;
+use std::time::Duration;
 
 use crab_clean::config::Config;
 use crab_clean::core::model::FileEntry;
-use crab_clean::tui::app::{App, Screen};
+use crab_clean::tui::app::{App, HomePanel, Screen};
 use crab_clean::tui::ui;
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
@@ -85,4 +87,66 @@ fn tui_drives_full_flow_on_mock_file() {
     app.on_key(key(KeyCode::Enter));
     assert_eq!(app.screen, Screen::Home);
     draw(&mut terminal, &mut app);
+}
+
+#[test]
+fn home_browser_navigates_and_scans() {
+    // A mock tree: a subdir to browse into, plus two identical files for the
+    // duplicate scan to find.
+    let root = tempdir().unwrap();
+    fs::create_dir(root.path().join("sub")).unwrap();
+    for name in ["dup_a.txt", "dup_b.txt"] {
+        let mut f = fs::File::create(root.path().join(name)).unwrap();
+        f.write_all(b"identical bytes for dedupe").unwrap();
+    }
+
+    let config = Config {
+        default_path: root.path().to_string_lossy().into_owned(),
+        ..Config::default()
+    };
+    let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+    let mut app = App::new(config);
+    let draw = |t: &mut Terminal<TestBackend>, a: &mut App| {
+        t.draw(|f| ui::render(f, a)).unwrap();
+    };
+
+    draw(&mut terminal, &mut app);
+
+    // Focus the browser, descend into "sub", then go back up.
+    app.on_key(key(KeyCode::Tab));
+    assert_eq!(app.home_panel, HomePanel::Browser);
+    // Move to the "sub/" entry (item 0 is "../") and open it.
+    app.on_key(key(KeyCode::Down));
+    app.on_key(key(KeyCode::Enter));
+    assert!(app.browse_dir.ends_with("sub"));
+    draw(&mut terminal, &mut app);
+    app.on_key(key(KeyCode::Left)); // back up to root
+    assert!(!app.browse_dir.ends_with("sub"));
+
+    // Mode defaults to Duplicates; kick off a scan with 's'.
+    app.on_key(key(KeyCode::Char('s')));
+    assert_eq!(app.screen, Screen::Scanning);
+
+    // Pump the event loop until the background scan completes.
+    for _ in 0..300 {
+        app.tick();
+        draw(&mut terminal, &mut app);
+        if app.screen == Screen::Review {
+            break;
+        }
+        sleep(Duration::from_millis(10));
+    }
+
+    assert_eq!(
+        app.screen,
+        Screen::Review,
+        "scan should reach the review screen"
+    );
+    assert_eq!(
+        app.entries.len(),
+        2,
+        "two identical files form one duplicate group"
+    );
+    // All-but-newest pre-selected for duplicates.
+    assert_eq!(app.selected.len(), 1);
 }
