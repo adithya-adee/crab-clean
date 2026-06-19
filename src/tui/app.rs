@@ -17,15 +17,23 @@ use crate::core::model::{FileEntry, ScanMode, TimeBasis};
 use crate::core::scanner::{ScanOptions, scan};
 use crate::tui::theme::Theme;
 
-/// Top-level screen the user is on.
+/// Top-level screen (page) the user is on. Yes/no prompts and forms are modals
+/// layered on top of these, not separate screens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Home,
     Scanning,
     Review,
-    Confirm,
     Summary,
 }
+
+/// Rows in the settings modal.
+pub const SETTING_COUNT: usize = 5;
+pub const SETTING_VIM: usize = 0;
+pub const SETTING_THEME: usize = 1;
+pub const SETTING_DELETE: usize = 2;
+pub const SETTING_BASIS: usize = 3;
+pub const SETTING_HIDDEN: usize = 4;
 
 /// Which panel on the home screen currently has focus. The focused panel is
 /// drawn with a bold accent border so the user always knows where they are.
@@ -127,9 +135,20 @@ pub struct App {
     pub theme: Theme,
     pub screen: Screen,
     pub status: String,
+    pub trash_count: usize,
+    /// Animation frame counter (drives the scan spinner).
+    pub frame: u64,
+    /// Vim-style navigation (hjkl, gg/G).
+    pub vim_mode: bool,
+    /// Tracks a pending `g` for the vim `gg` (go-to-top) chord.
+    pub pending_g: bool,
+
+    // --- Modals (layered over the current screen) ---
     pub show_help: bool,
     pub confirm_empty_trash: bool,
-    pub trash_count: usize,
+    pub confirm_delete: bool,
+    pub show_settings: bool,
+    pub settings_index: usize,
 
     // --- Home screen ---
     pub mode_index: usize,
@@ -181,9 +200,15 @@ impl App {
             theme,
             screen: Screen::Home,
             status: "Pick a mode (left), browse to a folder (Tab), then press 's' to scan.".into(),
+            trash_count,
+            frame: 0,
+            vim_mode: config.vim_mode,
+            pending_g: false,
             show_help: false,
             confirm_empty_trash: false,
-            trash_count,
+            confirm_delete: false,
+            show_settings: false,
+            settings_index: 0,
             mode_index: 0,
             home_panel: HomePanel::Mode,
             option_index: 0,
@@ -235,20 +260,37 @@ impl App {
             return;
         }
 
-        // Modal overlays take precedence.
+        // Any key other than `g` cancels a pending vim `gg` chord.
+        if key.code != KeyCode::Char('g') {
+            self.pending_g = false;
+        }
+
+        // Help is dismissed by any key.
         if self.show_help {
             self.show_help = false;
             return;
         }
+        // F1 opens help from anywhere (even while editing a text field).
+        if key.code == KeyCode::F(1) {
+            self.show_help = true;
+            return;
+        }
+
+        // Modal dialogs capture all input while open (highest priority first).
         if self.confirm_empty_trash {
             self.on_key_empty_trash(key);
             return;
         }
-
-        // F1 opens help from anywhere (even while editing a text field, where
-        // '?' would be typed instead).
-        if key.code == KeyCode::F(1) {
-            self.show_help = true;
+        if self.show_settings {
+            self.on_key_settings(key);
+            return;
+        }
+        if self.confirm_delete {
+            self.on_key_confirm(key);
+            return;
+        }
+        if self.filter_draft.is_some() {
+            self.on_key_filter(key);
             return;
         }
 
@@ -261,14 +303,7 @@ impl App {
                     self.screen = Screen::Home;
                 }
             }
-            Screen::Review => {
-                if self.filter_draft.is_some() {
-                    self.on_key_filter(key);
-                } else {
-                    self.on_key_review(key);
-                }
-            }
-            Screen::Confirm => self.on_key_confirm(key),
+            Screen::Review => self.on_key_review(key),
             Screen::Summary => {
                 if matches!(key.code, KeyCode::Enter | KeyCode::Esc | KeyCode::Char('q')) {
                     self.back_to_home();
@@ -301,6 +336,10 @@ impl App {
                 self.open_empty_trash_confirm();
                 return;
             }
+            KeyCode::Char(',') => {
+                self.open_settings();
+                return;
+            }
             KeyCode::Char('?') => {
                 self.show_help = true;
                 return;
@@ -327,31 +366,53 @@ impl App {
             _ => {}
         }
 
+        let vim = self.vim_mode;
         match self.home_panel {
             HomePanel::Mode => match key.code {
-                KeyCode::Up => {
-                    self.mode_index =
-                        (self.mode_index + ScanMode::ALL.len() - 1) % ScanMode::ALL.len();
-                }
-                KeyCode::Down => {
-                    self.mode_index = (self.mode_index + 1) % ScanMode::ALL.len();
-                }
+                KeyCode::Up => self.mode_prev(),
+                KeyCode::Down => self.mode_next(),
+                KeyCode::Char('k') if vim => self.mode_prev(),
+                KeyCode::Char('j') if vim => self.mode_next(),
                 _ => {}
             },
             HomePanel::Browser => match key.code {
                 KeyCode::Up => self.browse_move(-1),
                 KeyCode::Down => self.browse_move(1),
+                KeyCode::Char('k') if vim => self.browse_move(-1),
+                KeyCode::Char('j') if vim => self.browse_move(1),
                 KeyCode::PageUp => self.browse_move(-10),
                 KeyCode::PageDown => self.browse_move(10),
                 KeyCode::Right => self.browser_open(),
+                KeyCode::Char('l') if vim => self.browser_open(),
                 KeyCode::Left | KeyCode::Backspace => self.browser_up(),
+                KeyCode::Char('h') if vim => self.browser_up(),
+                KeyCode::Char('G') if vim && !self.browse_items.is_empty() => {
+                    self.browse_state.select(Some(self.browse_items.len() - 1));
+                }
+                KeyCode::Char('g') if vim => {
+                    if self.pending_g {
+                        self.browse_state.select(Some(0));
+                        self.pending_g = false;
+                    } else {
+                        self.pending_g = true;
+                    }
+                }
                 _ => {}
             },
             HomePanel::Options => self.on_key_options(key),
         }
     }
 
+    fn mode_prev(&mut self) {
+        self.mode_index = (self.mode_index + ScanMode::ALL.len() - 1) % ScanMode::ALL.len();
+    }
+
+    fn mode_next(&mut self) {
+        self.mode_index = (self.mode_index + 1) % ScanMode::ALL.len();
+    }
+
     fn on_key_options(&mut self, key: KeyEvent) {
+        let vim = self.vim_mode;
         match key.code {
             KeyCode::Up => {
                 self.option_index = (self.option_index + OPTION_COUNT - 1) % OPTION_COUNT;
@@ -359,8 +420,16 @@ impl App {
             KeyCode::Down => {
                 self.option_index = (self.option_index + 1) % OPTION_COUNT;
             }
+            KeyCode::Char('k') if vim => {
+                self.option_index = (self.option_index + OPTION_COUNT - 1) % OPTION_COUNT;
+            }
+            KeyCode::Char('j') if vim => {
+                self.option_index = (self.option_index + 1) % OPTION_COUNT;
+            }
             KeyCode::Left => self.adjust_option(-1),
             KeyCode::Right => self.adjust_option(1),
+            KeyCode::Char('h') if vim => self.adjust_option(-1),
+            KeyCode::Char('l') if vim => self.adjust_option(1),
             KeyCode::Char(' ') => match self.option_index {
                 OPTION_HIDDEN => self.toggle_hidden(),
                 OPTION_SYMLINKS => self.follow_symlinks = !self.follow_symlinks,
@@ -490,24 +559,41 @@ impl App {
     }
 
     fn on_key_review(&mut self, key: KeyEvent) {
+        let vim = self.vim_mode;
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => self.back_to_home(),
             KeyCode::Up | KeyCode::Char('k') => self.move_cursor(-1),
             KeyCode::Down | KeyCode::Char('j') => self.move_cursor(1),
             KeyCode::PageUp => self.move_cursor(-10),
             KeyCode::PageDown => self.move_cursor(10),
-            KeyCode::Home | KeyCode::Char('g') => self.set_cursor(0),
-            KeyCode::End | KeyCode::Char('G') if !self.filtered.is_empty() => {
+            KeyCode::Home => self.set_cursor(0),
+            KeyCode::End if !self.filtered.is_empty() => {
                 self.set_cursor(self.filtered.len() - 1);
             }
-            KeyCode::Char(' ') => self.toggle_current(),
+            // `g`: immediate top in normal mode; `gg` chord in vim mode.
+            KeyCode::Char('g') => {
+                if vim {
+                    if self.pending_g {
+                        self.set_cursor(0);
+                        self.pending_g = false;
+                    } else {
+                        self.pending_g = true;
+                    }
+                } else {
+                    self.set_cursor(0);
+                }
+            }
+            KeyCode::Char('G') if !self.filtered.is_empty() => {
+                self.set_cursor(self.filtered.len() - 1);
+            }
+            KeyCode::Char(' ') | KeyCode::Char('x') => self.toggle_current(),
             KeyCode::Char('a') => self.select_all_filtered(),
             KeyCode::Char('c') => {
                 self.selected.clear();
                 self.status = "Selection cleared".into();
             }
             KeyCode::Char('i') => self.invert_filtered(),
-            KeyCode::Char('f') => self.open_filter(),
+            KeyCode::Char('f') | KeyCode::Char('/') => self.open_filter(),
             KeyCode::Char('F') => {
                 self.filter = Filter {
                     time_basis: self.config.time_basis,
@@ -525,6 +611,7 @@ impl App {
                 self.sort_desc = !self.sort_desc;
                 self.sort_filtered();
             }
+            KeyCode::Char(',') => self.open_settings(),
             KeyCode::Char('?') => self.show_help = true,
             KeyCode::Enter | KeyCode::Char('d') => self.go_to_confirm(),
             _ => {}
@@ -550,14 +637,79 @@ impl App {
 
     fn on_key_confirm(&mut self, key: KeyEvent) {
         match key.code {
-            KeyCode::Char('t') => {
-                self.delete_mode = match self.delete_mode {
-                    DeleteMode::Trash => DeleteMode::Permanent,
-                    DeleteMode::Permanent => DeleteMode::Trash,
-                };
+            KeyCode::Char('t') | KeyCode::Tab => {
+                self.delete_mode = self.delete_mode.toggled();
             }
             KeyCode::Char('y') | KeyCode::Enter => self.do_delete(),
-            KeyCode::Esc | KeyCode::Char('n') => self.screen = Screen::Review,
+            KeyCode::Esc | KeyCode::Char('n') => self.confirm_delete = false,
+            _ => {}
+        }
+    }
+
+    // ----------------------------------------------------------------- settings
+
+    fn open_settings(&mut self) {
+        self.settings_index = 0;
+        self.show_settings = true;
+    }
+
+    fn on_key_settings(&mut self, key: KeyEvent) {
+        let vim = self.vim_mode;
+        match key.code {
+            KeyCode::Esc | KeyCode::Char(',') => {
+                self.show_settings = false;
+                // Persist on close (best effort).
+                match self.config.save() {
+                    Ok(()) => self.status = "Settings saved".into(),
+                    Err(e) => self.status = format!("Could not save settings: {e}"),
+                }
+            }
+            KeyCode::Up => self.settings_prev(),
+            KeyCode::Down => self.settings_next(),
+            KeyCode::Char('k') if vim => self.settings_prev(),
+            KeyCode::Char('j') if vim => self.settings_next(),
+            KeyCode::Left
+            | KeyCode::Right
+            | KeyCode::Enter
+            | KeyCode::Char(' ')
+            | KeyCode::Char('h')
+            | KeyCode::Char('l') => self.settings_change(),
+            _ => {}
+        }
+    }
+
+    fn settings_prev(&mut self) {
+        self.settings_index = (self.settings_index + SETTING_COUNT - 1) % SETTING_COUNT;
+    }
+
+    fn settings_next(&mut self) {
+        self.settings_index = (self.settings_index + 1) % SETTING_COUNT;
+    }
+
+    /// Toggle / cycle the highlighted setting and apply it immediately.
+    fn settings_change(&mut self) {
+        match self.settings_index {
+            SETTING_VIM => {
+                self.config.vim_mode = !self.config.vim_mode;
+                self.vim_mode = self.config.vim_mode;
+            }
+            SETTING_THEME => {
+                self.config.theme = self.config.theme.next();
+                self.theme = Theme::from_name(self.config.theme);
+            }
+            SETTING_DELETE => {
+                self.config.delete_mode = self.config.delete_mode.toggled();
+                self.delete_mode = self.config.delete_mode;
+            }
+            SETTING_BASIS => {
+                self.config.time_basis = self.config.time_basis.next();
+                self.filter.time_basis = self.config.time_basis;
+            }
+            SETTING_HIDDEN => {
+                self.config.include_hidden = !self.config.include_hidden;
+                self.include_hidden = self.config.include_hidden;
+                self.refresh_browser();
+            }
             _ => {}
         }
     }
@@ -624,6 +776,9 @@ impl App {
 
     /// Drain any pending messages from the scan thread. Called every loop tick.
     pub fn tick(&mut self) {
+        // Advance the animation clock (used by the scan spinner).
+        self.frame = self.frame.wrapping_add(1);
+
         let Some(rx) = &self.scan_rx else {
             return;
         };
@@ -852,7 +1007,7 @@ impl App {
             self.status = "Nothing selected — press Space to mark files".into();
             return;
         }
-        self.screen = Screen::Confirm;
+        self.confirm_delete = true;
     }
 
     /// Entries currently marked for deletion (sorted by path for a stable view).
@@ -888,6 +1043,7 @@ impl App {
         );
         self.report = Some(report);
         self.trash_count = delete::trash_item_count().unwrap_or(self.trash_count);
+        self.confirm_delete = false;
         self.screen = Screen::Summary;
     }
 

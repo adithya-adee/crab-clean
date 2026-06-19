@@ -16,8 +16,10 @@
 - 🎛️ **Powerful filters** — by extension, name substring, size range, and date range (`YYYY-MM-DD`).
 - ✅ **Multi-select** — mark individual files, select all / clear / invert, sort by name/size/date/extension.
 - 🗑️ **Safe by default** — deletions go to the OS trash (recoverable). Toggle to permanent per-action. Empty the system trash from inside the app.
-- ⚙️ **Customizable** — a TOML config for default path, scan depth, hidden/symlink handling, default age, time basis, delete mode, and color theme.
-- ⚡ **Responsive** — scanning and hashing run on a background thread so the UI never freezes.
+- 🪟 **Modal UI** — confirm, settings, filters, and help are centered dialogs over a dimmed background; the focused panel is always highlighted.
+- ⌨️ **Vim mode** — optional `hjkl` / `gg` / `G` navigation, toggleable in Settings and persisted.
+- ⚙️ **Customizable** — an in-app Settings dialog plus a TOML config for default path, scan depth, hidden/symlink handling, default age, time basis, delete mode, color theme (Default / Ocean / Sunset / Mono), and vim mode.
+- ⚡ **Responsive** — scanning and hashing run on a background thread (with an animated spinner) so the UI never freezes.
 
 ## Installation
 
@@ -62,8 +64,11 @@ You land on the **Home** screen, which has three panels — **Mode**, **Browse**
 | `Space` | (Options) toggle include-hidden / follow-symlinks |
 | `s` | Scan the current folder |
 | `e` | Empty the system trash |
-| `F1` | Help (works anywhere) |
+| `,` | Open Settings (vim mode, theme, …) |
+| `F1` / `?` | Help (works anywhere) |
 | `Esc` | Quit |
+
+> Enable **Vim mode** in Settings (`,`) for `hjkl` movement, `gg`/`G` to jump to top/bottom, `/` to filter, and `x` to mark. Arrow keys keep working in both modes.
 
 **Review**
 
@@ -103,7 +108,10 @@ default_age_days = 30
 time_basis = "Modified"  # Modified | Accessed | Created  (used by date filters)
 delete_mode = "Trash"    # Trash | Permanent
 theme = "Default"        # Default | Ocean | Sunset | Mono
+vim_mode = false         # hjkl / gg / G navigation
 ```
+
+Most of these can also be changed live from the in-app **Settings** dialog (`,`), which saves them back to this file on close.
 
 ## Safety
 

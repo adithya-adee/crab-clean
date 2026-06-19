@@ -66,11 +66,16 @@ fn tui_drives_full_flow_on_mock_file() {
     app.on_key(key(KeyCode::Esc));
     assert!(app.filter_draft.is_none());
 
-    // Mark the file, go to confirm, switch to permanent, render.
+    // Mark the file, open the confirm modal, switch to permanent, render.
     app.on_key(key(KeyCode::Char(' ')));
     assert_eq!(app.selected.len(), 1);
     app.on_key(key(KeyCode::Char('d')));
-    assert_eq!(app.screen, Screen::Confirm);
+    assert!(app.confirm_delete, "confirm modal should open");
+    assert_eq!(
+        app.screen,
+        Screen::Review,
+        "still on Review behind the modal"
+    );
     app.on_key(key(KeyCode::Char('t'))); // -> permanent (deletes the mock file)
     draw(&mut terminal, &mut app);
 
@@ -149,4 +154,62 @@ fn home_browser_navigates_and_scans() {
     );
     // All-but-newest pre-selected for duplicates.
     assert_eq!(app.selected.len(), 1);
+}
+
+#[test]
+fn settings_modal_toggles_vim_and_theme() {
+    // NOTE: we never close the modal here — closing persists config to the real
+    // user config dir, which a test must not touch. We only assert in-memory
+    // state changes.
+    let mut terminal = Terminal::new(TestBackend::new(100, 36)).unwrap();
+    let mut app = App::new(Config::default());
+    let draw = |t: &mut Terminal<TestBackend>, a: &mut App| {
+        t.draw(|f| ui::render(f, a)).unwrap();
+    };
+
+    assert!(!app.vim_mode);
+
+    // Open settings from Home and render the modal.
+    app.on_key(key(KeyCode::Char(',')));
+    assert!(app.show_settings);
+    draw(&mut terminal, &mut app);
+
+    // Row 0 is "Vim navigation" — toggle it on.
+    app.on_key(key(KeyCode::Enter));
+    assert!(app.vim_mode);
+    assert!(app.config.vim_mode);
+
+    // Move to the theme row and cycle it.
+    let before = app.config.theme;
+    app.on_key(key(KeyCode::Down));
+    app.on_key(key(KeyCode::Right));
+    assert_ne!(app.config.theme, before, "theme should cycle");
+    draw(&mut terminal, &mut app);
+}
+
+#[test]
+fn renders_on_tiny_terminal_without_panic() {
+    // Layout math must not panic on cramped terminals.
+    let mut terminal = Terminal::new(TestBackend::new(20, 6)).unwrap();
+    let mut app = App::new(Config::default());
+
+    terminal.draw(|f| ui::render(f, &mut app)).unwrap(); // Home
+
+    app.show_help = true;
+    terminal.draw(|f| ui::render(f, &mut app)).unwrap();
+    app.show_help = false;
+
+    app.show_settings = true;
+    terminal.draw(|f| ui::render(f, &mut app)).unwrap();
+    app.show_settings = false;
+
+    app.confirm_empty_trash = true;
+    terminal.draw(|f| ui::render(f, &mut app)).unwrap();
+    app.confirm_empty_trash = false;
+
+    app.screen = Screen::Scanning;
+    terminal.draw(|f| ui::render(f, &mut app)).unwrap();
+
+    app.screen = Screen::Summary;
+    terminal.draw(|f| ui::render(f, &mut app)).unwrap();
 }

@@ -96,3 +96,22 @@ pub enum TimeBasis {
     Accessed,
     Created,
 }
+
+impl TimeBasis {
+    pub fn label(&self) -> &'static str {
+        match self {
+            TimeBasis::Modified => "Modified",
+            TimeBasis::Accessed => "Accessed",
+            TimeBasis::Created => "Created",
+        }
+    }
+
+    /// Cycle to the next basis.
+    pub fn next(self) -> Self {
+        match self {
+            TimeBasis::Modified => TimeBasis::Accessed,
+            TimeBasis::Accessed => TimeBasis::Created,
+            TimeBasis::Created => TimeBasis::Modified,
+        }
+    }
+}

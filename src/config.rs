@@ -17,6 +17,27 @@ pub enum ThemeName {
     Mono,
 }
 
+impl ThemeName {
+    pub fn label(&self) -> &'static str {
+        match self {
+            ThemeName::Default => "Default",
+            ThemeName::Ocean => "Ocean",
+            ThemeName::Sunset => "Sunset",
+            ThemeName::Mono => "Mono",
+        }
+    }
+
+    /// Cycle to the next palette.
+    pub fn next(self) -> Self {
+        match self {
+            ThemeName::Default => ThemeName::Ocean,
+            ThemeName::Ocean => ThemeName::Sunset,
+            ThemeName::Sunset => ThemeName::Mono,
+            ThemeName::Mono => ThemeName::Default,
+        }
+    }
+}
+
 /// All user-tunable defaults. Everything has a sensible fallback so a missing or
 /// partial config file still works (`#[serde(default)]`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +56,8 @@ pub struct Config {
     /// Default deletion behaviour.
     pub delete_mode: DeleteMode,
     pub theme: ThemeName,
+    /// Use vim-style navigation (hjkl, gg/G) throughout the UI.
+    pub vim_mode: bool,
 }
 
 impl Default for Config {
@@ -48,6 +71,7 @@ impl Default for Config {
             time_basis: TimeBasis::default(),
             delete_mode: DeleteMode::default(),
             theme: ThemeName::default(),
+            vim_mode: false,
         }
     }
 }

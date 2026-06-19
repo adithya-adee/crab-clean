@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Directory browser** on Home — navigate the filesystem to pick a scan target
+  instead of typing a path (breadcrumb + sub-folder list; `Enter`/`→` open,
+  `←`/`Backspace` up, `~` home).
+- **Vim mode** — optional `hjkl` / `gg` / `G` navigation, `/` to filter, `x` to
+  mark; toggleable in Settings and persisted to config.
+- **Settings dialog** (`,`) — change vim mode, color theme, default delete mode,
+  date basis, and show-hidden live; saved on close.
+- **Modal UI redesign** — confirm/settings/filter/help/empty-trash are now
+  centered dialogs over a dimmed background; an accent header bar, context
+  footer of key "chips", and a per-panel focus highlight (thick accent border).
+- Animated spinner on the scanning screen.
+
+### Changed
+
+- Delete confirmation is now a modal over the review screen rather than a
+  separate page.
+
 ## [0.2.0] - 2026-06-19
 
 ### Changed (breaking)

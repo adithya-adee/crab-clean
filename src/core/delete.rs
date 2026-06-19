@@ -23,6 +23,21 @@ impl DeleteMode {
             DeleteMode::Permanent => "Delete permanently (cannot be undone)",
         }
     }
+
+    /// Short label for compact UI (settings, headers).
+    pub fn short_label(&self) -> &'static str {
+        match self {
+            DeleteMode::Trash => "Trash",
+            DeleteMode::Permanent => "Permanent",
+        }
+    }
+
+    pub fn toggled(self) -> Self {
+        match self {
+            DeleteMode::Trash => DeleteMode::Permanent,
+            DeleteMode::Permanent => DeleteMode::Trash,
+        }
+    }
 }
 
 /// Outcome of a delete operation.
