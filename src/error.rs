@@ -1,36 +1,48 @@
-use std::fmt;
-use std::io;
+//! Error types for crab-clean.
+
 use std::path::PathBuf;
+use thiserror::Error;
 
-#[derive(Debug)]
-pub enum CrabcleanError {
-    Io(io::Error),
-    FileAccess { path: PathBuf, source: io::Error },
-    Config(String),
-    Scan(String),
+/// The central error type for the whole crate.
+#[derive(Debug, Error)]
+pub enum CrabError {
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("cannot access '{path}': {source}")]
+    FileAccess {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("invalid argument: {0}")]
     InvalidArgument(String),
+
+    #[error("configuration error: {0}")]
+    Config(String),
+
+    #[error("trash operation failed: {0}")]
+    Trash(String),
 }
 
-impl std::error::Error for CrabcleanError {}
-
-impl fmt::Display for CrabcleanError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Io(err) => write!(f, "I/O error: {}", err),
-            Self::FileAccess { path, source } => {
-                write!(f, "Cannot access file '{}': {}", path.display(), source)
-            }
-            Self::Config(msg) => write!(f, "Configuration error: {}", msg),
-            Self::Scan(msg) => write!(f, "File scan error: {}", msg),
-            Self::InvalidArgument(msg) => write!(f, "Invalid argument: {}", msg),
-        }
+impl From<trash::Error> for CrabError {
+    fn from(err: trash::Error) -> Self {
+        Self::Trash(err.to_string())
     }
 }
 
-impl From<io::Error> for CrabcleanError {
-    fn from(err: io::Error) -> Self {
-        Self::Io(err)
+impl From<toml::de::Error> for CrabError {
+    fn from(err: toml::de::Error) -> Self {
+        Self::Config(err.to_string())
     }
 }
 
-pub type CrabCleanResult<T> = Result<T, CrabcleanError>;
+impl From<toml::ser::Error> for CrabError {
+    fn from(err: toml::ser::Error) -> Self {
+        Self::Config(err.to_string())
+    }
+}
+
+/// Convenience alias used throughout the crate.
+pub type Result<T> = std::result::Result<T, CrabError>;

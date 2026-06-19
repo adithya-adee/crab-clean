@@ -1,30 +1,33 @@
 ![Crab Clean Logo](crab_clean_logo.png)
-# Crab Clean CLI
 
-[![Crates.io](https://img.shields.io/badge/crates_io-blue.svg)]([https://crates.io/crates/crab-clean](https://crates.io/crates/crab-clean))
+# Crab Clean
+
+[![Crates.io](https://img.shields.io/badge/crates_io-blue.svg)](https://crates.io/crates/crab-clean)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
 
-> Crab Clean CLI is a Rust‑powered command‑line tool that helps developers and everyday users quickly clean up unused, duplicate, and scattered files in any directory—automating smart grouping and safe deletion to keep your workspace lean and organized.
+> Crab Clean is a Rust-powered **interactive terminal UI** (built with [ratatui](https://ratatui.rs)) that helps you find and safely remove **duplicate**, **old**, and **unused** files in any directory — with rich filtering, multi-select, and recoverable trash-based deletion.
 
 ## Features
 
-- **🔍 Duplicate File Detection**: Identifies exact duplicate files using SHA-256 content hashing
-- **⏰ Unused File Cleanup**: Finds files that haven't been accessed for a specified number of days
-- **🎯 Interactive Deletion**: Safe, user-confirmed deletion with progress tracking
-- **⚡ High Performance**: Multi-threaded scanning and hashing using Rayon
-- **🛡️ Cross-Platform**: Works on Linux, macOS, and Windows
-- **📊 Progress Visualization**: Real-time progress bars and spinners
-- **🔄 Dry Run Mode**: Preview operations without making changes
+- 🖥️ **Full TUI** — no command-line flags to memorize; everything is driven from the keyboard inside the app.
+- 🔍 **Duplicate detection** — exact duplicates via size bucketing + SHA-256, hashed in parallel with Rayon. Groups are shown together and all-but-the-newest is pre-selected.
+- ⏳ **Old & unused files** — find files not *modified* (old) or not *accessed* (unused) for N days.
+- 🗂️ **Browse-all mode** — list every file and narrow it down with filters.
+- 🎛️ **Powerful filters** — by extension, name substring, size range, and date range (`YYYY-MM-DD`).
+- ✅ **Multi-select** — mark individual files, select all / clear / invert, sort by name/size/date/extension.
+- 🗑️ **Safe by default** — deletions go to the OS trash (recoverable). Toggle to permanent per-action. Empty the system trash from inside the app.
+- ⚙️ **Customizable** — a TOML config for default path, scan depth, hidden/symlink handling, default age, time basis, delete mode, and color theme.
+- ⚡ **Responsive** — scanning and hashing run on a background thread so the UI never freezes.
 
 ## Installation
 
-### From crates.io (Recommended)
+### From crates.io
 
 ```bash
 cargo install crab-clean
 ```
 
-### From Source
+### From source
 
 ```bash
 git clone https://github.com/adithya-adee/crab-clean.git
@@ -32,138 +35,101 @@ cd crab-clean
 cargo install --path .
 ```
 
-### Pre-compiled Binaries
-
-Download pre-compiled binaries from the [Releases page](https://github.com/adithya-adee/crab-clean/releases).
-
-## Quick Start
-
-### Find Duplicate Files
-
-```bash
-# Dry run (preview only)
-crabclean duplicate /path/to/directory --dry-run
-
-# Interactive deletion
-crabclean duplicate /path/to/directory
-
-# Current directory
-crabclean duplicate .
-```
-
-### Find Unused Files
-
-```bash
-# Find files unused for 30 days (default)
-crabclean unused /path/to/directory --dry-run 
-OR
-crabclean unused /path/to/directory -n
-
-# Find files unused for 60 days without interactive/automatic deletion
-crabclean unused /path/to/directory --age 60 -n
-
-# Interactive deletion
-crabclean unused /path/to/directory --age 30
-```
+This installs the `crabclean` binary onto your `PATH` (`~/.cargo/bin`).
 
 ## Usage
 
-```text
-Tidy your file system by finding and managing duplicate and unused files
-
-Usage: crabclean <COMMAND> <SOURCE_DIRECTORY> <flag>
-
-Commands:
-  duplicate  Find and manage duplicate files
-  unused     Find and manage unused files
-  help       Print this message or the help of the given subcommand(s)
-
-Flag:
-  --dry-run / -n To just know details
-  without args   You will be prompted to ask for delete (Press ctrl + c to exit the terminal , only if you don't want to delete)
-
-Options:
-  -h, --help     Print help
-  -V, --version  Print version
-```
-
-### Duplicate Command
-
-```
-Find and manage duplicate files
-
-Usage: crabclean duplicate [OPTIONS] [PATH]
-
-Arguments:
-  [PATH]  Path to the directory to scan [default: .]
-
-Options:
-  -n, --dry-run  Perform a dry run without deleting files
-  -h, --help     Print help
-```
-
-### Unused Command
-
-```
-Find and manage unused files
-
-Usage: crabclean unused [OPTIONS] [PATH]
-
-Arguments:
-  [PATH]  Path to the directory to scan [default: .]
-
-Options:
-  -a, --age <AGE>  Age in days for a file to be considered unused [default: 30]
-  -n, --dry-run    Perform a dry run without deleting files
-  -h, --help       Print help
-```
-
-## Examples
+Just launch it — there are no subcommands or flags:
 
 ```bash
-# Find duplicates in Downloads folder (dry run)
-crabclean duplicate ~/Downloads --dry-run
-
-# Clean up unused files older than 90 days in project directory
-crabclean unused ~/projects --age 90
-
-# Interactive duplicate cleanup in current directory
-crabclean duplicate .
+crabclean
 ```
 
-## Safety Features
+You land on the **Home** screen. Pick a mode, set the directory and options, then press **Enter** to scan.
 
-- **Dry run by default**: Use `--dry-run` to preview changes
-- **Interactive confirmation**: Each file deletion requires user confirmation
-- **Progress tracking**: Visual feedback during long operations
-- **Error handling**: Graceful error reporting and recovery
+### Key bindings
 
-## Performance
+**Home**
 
-- **Multi-threaded**: Uses Rayon for parallel file processing
-- **Efficient hashing**: SHA-256 with optimized buffer sizes
-- **Smart grouping**: Files are first grouped by size before hashing
-- **Memory efficient**: Streaming file processing for large files
+| Key | Action |
+| --- | --- |
+| `↑` / `↓` | Choose scan mode (Duplicates / Unused / Old / All files) |
+| `Tab` | Move between Path / Age / Max-depth / toggles |
+| `Space` | Toggle a checkbox (include hidden, follow symlinks) |
+| `Enter` | Start the scan |
+| `e` | Empty the system trash |
+| `F1` | Help (works anywhere) |
+| `Esc` | Quit |
 
-## Contributing
+**Review**
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+| Key | Action |
+| --- | --- |
+| `↑`/`↓` or `j`/`k` | Move cursor |
+| `Space` | Mark / unmark a file for deletion |
+| `a` / `c` / `i` | Select all / clear / invert |
+| `f` / `F` | Open filters / reset filters |
+| `s` / `S` | Cycle sort key / flip direction |
+| `g` / `G` | Jump to top / bottom |
+| `d` or `Enter` | Review & delete the marked files |
+| `q` / `Esc` | Back to Home |
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+**Confirm**
+
+| Key | Action |
+| --- | --- |
+| `t` | Toggle Trash ↔ Permanent |
+| `y` / `Enter` | Delete |
+| `n` / `Esc` | Cancel |
+
+## Configuration
+
+Crab Clean reads an optional TOML file (defaults are used if it's absent):
+
+- Linux: `~/.config/crab-clean/config.toml`
+- macOS: `~/Library/Application Support/crab-clean/config.toml`
+- Windows: `%APPDATA%\crab-clean\config.toml`
+
+```toml
+default_path = "."
+max_depth = 8            # omit / null for unlimited
+include_hidden = false
+follow_symlinks = false
+default_age_days = 30
+time_basis = "Modified"  # Modified | Accessed | Created  (used by date filters)
+delete_mode = "Trash"    # Trash | Permanent
+theme = "Default"        # Default | Ocean | Sunset | Mono
+```
+
+## Safety
+
+- **Trash by default** — files go to your OS recycle bin and can be restored. Permanent deletion is opt-in per action.
+- **Explicit confirmation** — nothing is deleted until you review the exact list and confirm.
+- **Robust scanning** — unreadable files/dirs are skipped instead of crashing the scan.
+
+## Library use
+
+The detection logic is also usable as a library:
+
+```rust
+use crab_clean::core::scanner::{scan, ScanOptions};
+use crab_clean::core::algorithms::find_duplicates;
+use std::path::Path;
+
+let files = scan(Path::new("."), &ScanOptions::default(), |_| {}).unwrap();
+let groups = find_duplicates(&files);
+println!("found {} duplicate group(s)", groups.len());
+```
 
 ## License
 
-This project is licensed under either of
+Licensed under either of
 
-- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
 
 at your option.
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.
+See [CHANGELOG.md](CHANGELOG.md).

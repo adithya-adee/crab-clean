@@ -1,43 +1,96 @@
-use crate::{error::CrabcleanError, utils::progress::create_progress_bar};
-use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
+//! Filesystem traversal that produces [`FileEntry`] records.
 
-pub fn get_file_tree(base_dir_path: &PathBuf) -> Result<Vec<PathBuf>, CrabcleanError> {
-    let base_dir = Path::new(base_dir_path);
+use crate::core::model::FileEntry;
+use crate::error::{CrabError, Result};
+use std::path::Path;
+use walkdir::{DirEntry, WalkDir};
 
-    if !base_dir.is_dir() {
-        return Err(CrabcleanError::InvalidArgument(format!(
-            "Provided path {:?} is not a directory or does not exist",
-            base_dir_path
+/// Options controlling how the directory tree is walked.
+#[derive(Debug, Clone, Default)]
+pub struct ScanOptions {
+    /// Maximum recursion depth. `None` means unlimited.
+    pub max_depth: Option<usize>,
+    /// Include dot-files and dot-directories.
+    pub include_hidden: bool,
+    /// Follow symbolic links (off by default to avoid cycles / double counting).
+    pub follow_symlinks: bool,
+}
+
+fn is_hidden(entry: &DirEntry) -> bool {
+    // Never treat the root (depth 0) as hidden, otherwise scanning "." prunes
+    // everything immediately.
+    entry.depth() > 0
+        && entry
+            .file_name()
+            .to_str()
+            .map(|s| s.starts_with('.'))
+            .unwrap_or(false)
+}
+
+/// Walk `root` and collect every regular file as a [`FileEntry`].
+///
+/// `on_progress` is invoked periodically with the running file count so a UI can
+/// show live progress. Unreadable entries are skipped rather than aborting the
+/// whole scan (this is the bug the old `.unwrap()`-based scanner had).
+pub fn scan<F>(root: &Path, opts: &ScanOptions, mut on_progress: F) -> Result<Vec<FileEntry>>
+where
+    F: FnMut(usize),
+{
+    if !root.is_dir() {
+        return Err(CrabError::InvalidArgument(format!(
+            "'{}' is not a directory or does not exist",
+            root.display()
         )));
     }
 
-    let pb = create_progress_bar(&format!(
-        "Scanning files in {}...",
-        base_dir_path.to_str().unwrap_or("./")
-    ));
+    let mut walker = WalkDir::new(root).follow_links(opts.follow_symlinks);
+    if let Some(depth) = opts.max_depth {
+        walker = walker.max_depth(depth);
+    }
 
-    //TODO : Add max depth
-    let file_list: Vec<PathBuf> = WalkDir::new(base_dir_path)
-        .max_depth(3)
+    let include_hidden = opts.include_hidden;
+    let mut entries = Vec::new();
+    let mut count = 0usize;
+
+    for dir_entry in walker
         .into_iter()
-        .filter_entry(|e| {
-            // Skip entries if any component of the path starts with '.'
-            !e.path().components().any(|comp| {
-                use std::path::Component;
-                if let Component::Normal(os_str) = comp {
-                    os_str.to_str().map_or(false, |s| s.starts_with('.'))
-                } else {
-                    false
-                }
-            })
-        })
-        .filter_map(|e| e.ok().map(|entry| entry.into_path()))
-        .collect();
+        .filter_entry(|e| include_hidden || !is_hidden(e))
+    {
+        let dir_entry = match dir_entry {
+            Ok(e) => e,
+            Err(_) => continue, // permission denied, broken link, etc.
+        };
 
-    pb.finish_with_message("Scan complete.");
+        if !dir_entry.file_type().is_file() {
+            continue;
+        }
 
-    println!("Total Number of Files Scanned : {:?}", file_list.len());
+        let metadata = match dir_entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
 
-    Ok(file_list)
+        let path = dir_entry.into_path();
+        let extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|s| s.to_lowercase());
+
+        entries.push(FileEntry {
+            size: metadata.len(),
+            modified: metadata.modified().ok(),
+            accessed: metadata.accessed().ok(),
+            created: metadata.created().ok(),
+            extension,
+            path,
+        });
+
+        count += 1;
+        if count.is_multiple_of(256) {
+            on_progress(count);
+        }
+    }
+
+    on_progress(count);
+    Ok(entries)
 }

@@ -1,30 +1,29 @@
-//! # crabclean CLI
+//! # crab-clean
 //!
-//! A command-line tool for cleaning up duplicate and unused files.
+//! An interactive terminal UI for tidying your file system: find and safely
+//! remove **duplicate**, **old**, and **unused** files, with rich filtering and
+//! trash-based (recoverable) deletion.
 //!
-//! ## Features
+//! The crate is split into a UI-agnostic [`core`] (scanning, detection,
+//! filtering, deletion), a [`config`] layer, an [`error`] type, and the
+//! ratatui-based [`tui`].
 //!
-//! - Duplicate file detection using SHA-256 hashing
-//! - Unused file cleanup based on access time
-//! - Interactive deletion with progress tracking
-//! - Cross-platform support
+//! ## Example: detect duplicates programmatically
 //!
-//! ## Example
+//! ```no_run
+//! use crab_clean::core::scanner::{scan, ScanOptions};
+//! use crab_clean::core::algorithms::find_duplicates;
+//! use std::path::Path;
 //!
-//! ```rust
-//! use crab_clean::core::algorithms::duplicate_algo::get_duplicates;
-//! use std::path::PathBuf;
-//!
-//! let files = vec![PathBuf::from("file1.txt"), PathBuf::from("file2.txt")];
-//! let duplicates = get_duplicates(&files);
+//! let files = scan(Path::new("."), &ScanOptions::default(), |_| {}).unwrap();
+//! let groups = find_duplicates(&files);
+//! println!("found {} duplicate group(s)", groups.len());
 //! ```
 
-pub mod cli; // Command-line interface handling
-pub mod config; // Configuration management
-pub mod core; // Core business logic (scanning, analyzing)
-pub mod error; // Error types and handling
-pub mod utils; // Utility functions
+pub mod config;
+pub mod core;
+pub mod error;
+pub mod tui;
 
-// Re-export commonly used types
-pub use config::settings;
-pub use error::CrabcleanError;
+pub use config::Config;
+pub use error::{CrabError, Result};
